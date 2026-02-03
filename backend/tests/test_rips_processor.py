@@ -72,3 +72,68 @@ class TestGetAllServices:
         rips_data = {"usuarios": [{"servicios": {}}]}
         services = RIPSProcessor.get_all_services(rips_data)
         assert len(services) == 0
+
+
+class TestGenerateNCRIPS:
+    def test_generate_simple(self):
+        rips_data = {
+            "numDocumentoIdObligado": "817000162",
+            "numFactura": "HMD73787",
+            "usuarios": [{
+                "tipoDocumentoIdentificacion": "CC",
+                "numDocumentoIdentificacion": "4770399",
+                "tipoUsuario": "11",
+                "fechaNacimiento": "1953-02-28",
+                "codSexo": "M",
+                "codPaisResidencia": "170",
+                "codMunicipioResidencia": "19743",
+                "codZonaTerritorialResidencia": "01",
+                "incapacidad": "NO",
+                "consecutivo": 1,
+                "codPaisOrigen": "170",
+                "servicios": {
+                    "medicamentos": [{
+                        "codPrestador": "197430005801",
+                        "codTecnologiaSalud": "19943544",
+                        "nomTecnologiaSalud": "PRESERVATIVOS",
+                        "vrUnitMedicamento": 500,
+                        "cantidadMedicamento": 10,
+                        "vrServicio": 5000
+                    }]
+                }
+            }]
+        }
+
+        matches = [{
+            'tipo_servicio': 'medicamentos',
+            'codigo_rips': '19943544',
+            'valor_nc': 2000,
+            'cantidad_calculada': 4
+        }]
+
+        result = RIPSProcessor.generate_nc_rips(rips_data, 'NCD13239', matches)
+
+        assert result['tipoNota'] == 'NC'
+        assert result['numNota'] == 'NCD13239'
+        assert len(result['usuarios']) == 1
+        assert len(result['usuarios'][0]['servicios']['medicamentos']) == 1
+        assert result['usuarios'][0]['servicios']['medicamentos'][0]['cantidadMedicamento'] == 4
+        assert result['usuarios'][0]['servicios']['medicamentos'][0]['vrServicio'] == 2000
+
+    def test_calculate_total(self):
+        rips_data = {
+            "usuarios": [{
+                "servicios": {
+                    "medicamentos": [
+                        {"vrServicio": 2000},
+                        {"vrServicio": 500}
+                    ],
+                    "otrosServicios": [
+                        {"vrServicio": 397}
+                    ]
+                }
+            }]
+        }
+
+        total = RIPSProcessor.calculate_total(rips_data)
+        assert total == 2897.0
