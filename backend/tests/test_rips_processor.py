@@ -117,8 +117,10 @@ class TestGenerateNCRIPS:
         assert result['numNota'] == 'NCD13239'
         assert len(result['usuarios']) == 1
         assert len(result['usuarios'][0]['servicios']['medicamentos']) == 1
-        assert result['usuarios'][0]['servicios']['medicamentos'][0]['cantidadMedicamento'] == 4
+        # Para NC, cantidad es 1 y vrUnit se recalcula
+        assert result['usuarios'][0]['servicios']['medicamentos'][0]['cantidadMedicamento'] == 1
         assert result['usuarios'][0]['servicios']['medicamentos'][0]['vrServicio'] == 2000
+        assert result['usuarios'][0]['servicios']['medicamentos'][0]['vrUnitMedicamento'] == 2000
 
     def test_calculate_total(self):
         rips_data = {

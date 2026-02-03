@@ -147,10 +147,13 @@ class RIPSProcessor:
             codigo = match['codigo_rips']
             for med in meds_originales:
                 if med.get('codTecnologiaSalud') == codigo:
-                    # Crear copia con valores ajustados
-                    med_nc = {k: v for k, v in med.items() if k not in ['numAutorizacion', 'idMIPRES', 'fechaDispensAdmon', 'codDiagnosticoPrincipal', 'codDiagnosticoRelacionado', 'tipoMedicamento', 'concentracionMedicamento', 'unidadMedida', 'formaFarmaceutica', 'unidadMinDispensa', 'diasTratamiento', 'tipoDocumentoIdentificacion', 'numDocumentoIdentificacion', 'conceptoRecaudo', 'valorPagoModerador', 'numFEVPagoModerador']}
-                    med_nc['cantidadMedicamento'] = match['cantidad_calculada']
+                    # Crear copia completa con todos los campos originales
+                    med_nc = dict(med)
+                    # Para NC, la cantidad es 1 y se recalcula el valor unitario
+                    cantidad = 1
+                    med_nc['cantidadMedicamento'] = cantidad
                     med_nc['vrServicio'] = match['valor_nc']
+                    med_nc['vrUnitMedicamento'] = match['valor_nc'] / cantidad if cantidad > 0 else 0
                     med_nc['consecutivo'] = len(result) + 1
                     result.append(med_nc)
                     break
@@ -164,9 +167,13 @@ class RIPSProcessor:
             codigo = match['codigo_rips']
             for os in os_originales:
                 if os.get('codTecnologiaSalud') == codigo:
-                    os_nc = {k: v for k, v in os.items() if k not in ['numAutorizacion', 'idMIPRES', 'fechaSuministroTecnologia', 'tipoOS', 'tipoDocumentoIdentificacion', 'numDocumentoIdentificacion', 'conceptoRecaudo', 'valorPagoModerador', 'numFEVPagoModerador']}
-                    os_nc['cantidadOS'] = match['cantidad_calculada']
+                    # Crear copia completa con todos los campos originales
+                    os_nc = dict(os)
+                    # Para NC, la cantidad es 1 y se recalcula el valor unitario
+                    cantidad = 1
+                    os_nc['cantidadOS'] = cantidad
                     os_nc['vrServicio'] = match['valor_nc']
+                    os_nc['vrUnitOS'] = match['valor_nc'] / cantidad if cantidad > 0 else 0
                     os_nc['consecutivo'] = len(result) + 1
                     result.append(os_nc)
                     break
