@@ -68,3 +68,54 @@ class TestExtractSections:
         xml = '<root><other>content</other></root>'
         result = XMLProcessor.extract_invoice_period(xml)
         assert result is None
+
+
+class TestExtractNCLines:
+    def test_extract_single_line(self):
+        xml = '''<CreditNote xmlns:cac="urn:cac" xmlns:cbc="urn:cbc">
+        <cac:CreditNoteLine>
+            <cbc:ID>1</cbc:ID>
+            <cbc:CreditedQuantity unitCode="EA">1.00</cbc:CreditedQuantity>
+            <cbc:LineExtensionAmount currencyID="COP">2000.0000</cbc:LineExtensionAmount>
+            <cac:Item>
+                <cbc:Description>00037492 (19943544) PRESERVATIVOS</cbc:Description>
+            </cac:Item>
+        </cac:CreditNoteLine>
+        </CreditNote>'''
+
+        lines = XMLProcessor.extract_nc_lines(xml)
+        assert len(lines) == 1
+        assert lines[0].id == 1
+        assert lines[0].cantidad == 1.0
+        assert lines[0].valor == 2000.0
+        assert lines[0].codigo_extraido == "19943544"
+
+    def test_extract_multiple_lines(self):
+        xml = '''<CreditNote xmlns:cac="urn:cac" xmlns:cbc="urn:cbc">
+        <cac:CreditNoteLine>
+            <cbc:ID>1</cbc:ID>
+            <cbc:CreditedQuantity>1.00</cbc:CreditedQuantity>
+            <cbc:LineExtensionAmount>2000.00</cbc:LineExtensionAmount>
+            <cac:Item>
+                <cbc:Description>(CODE1) Product 1</cbc:Description>
+            </cac:Item>
+        </cac:CreditNoteLine>
+        <cac:CreditNoteLine>
+            <cbc:ID>2</cbc:ID>
+            <cbc:CreditedQuantity>2.00</cbc:CreditedQuantity>
+            <cbc:LineExtensionAmount>500.00</cbc:LineExtensionAmount>
+            <cac:Item>
+                <cbc:Description>Product 2 sin codigo</cbc:Description>
+            </cac:Item>
+        </cac:CreditNoteLine>
+        </CreditNote>'''
+
+        lines = XMLProcessor.extract_nc_lines(xml)
+        assert len(lines) == 2
+        assert lines[0].codigo_extraido == "CODE1"
+        assert lines[1].codigo_extraido is None
+
+    def test_extract_no_lines(self):
+        xml = '<CreditNote xmlns:cac="urn:cac"></CreditNote>'
+        lines = XMLProcessor.extract_nc_lines(xml)
+        assert len(lines) == 0

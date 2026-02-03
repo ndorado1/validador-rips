@@ -48,3 +48,51 @@ class XMLProcessor:
         pattern = r'(<cac:InvoicePeriod>.*?</cac:InvoicePeriod>)'
         match = re.search(pattern, embedded, re.DOTALL)
         return match.group(1) if match else None
+
+    @staticmethod
+    def extract_nc_lines(nc_xml: str) -> List[LineaNC]:
+        """Extrae las líneas de la Nota Crédito."""
+        embedded = XMLProcessor.get_embedded_document(nc_xml)
+        lines = []
+
+        # Buscar CreditNoteLine
+        for match in re.finditer(r'<cac:CreditNoteLine[^>]*>(.*?)</cac:CreditNoteLine>', embedded, re.DOTALL):
+            line_content = match.group(1)
+            line = {}
+
+            # ID
+            id_match = re.search(r'<cbc:ID[^>]*>(\d+)</cbc:ID>', line_content)
+            if id_match:
+                line['id'] = int(id_match.group(1))
+            else:
+                continue
+
+            # Cantidad (CreditedQuantity)
+            qty_match = re.search(r'<cbc:CreditedQuantity[^>]*>([^<]+)</cbc:CreditedQuantity>', line_content)
+            if qty_match:
+                line['cantidad'] = float(qty_match.group(1))
+            else:
+                line['cantidad'] = 0.0
+
+            # Valor (LineExtensionAmount)
+            amount_match = re.search(r'<cbc:LineExtensionAmount[^>]*>([^<]+)</cbc:LineExtensionAmount>', line_content)
+            if amount_match:
+                line['valor'] = float(amount_match.group(1))
+            else:
+                line['valor'] = 0.0
+
+            # Descripción
+            desc_match = re.search(r'<cbc:Description>([^<]+)</cbc:Description>', line_content)
+            if desc_match:
+                desc = desc_match.group(1)
+                line['descripcion'] = desc
+                # Extraer código entre paréntesis
+                code_match = re.search(r'\(([A-Z0-9\-]+)\)', desc)
+                if code_match:
+                    line['codigo_extraido'] = code_match.group(1)
+            else:
+                line['descripcion'] = ''
+
+            lines.append(LineaNC(**line))
+
+        return lines
