@@ -96,3 +96,64 @@ class XMLProcessor:
             lines.append(LineaNC(**line))
 
         return lines
+
+    @staticmethod
+    def insert_sections(nc_xml: str, interop: Optional[str], period: Optional[str]) -> str:
+        """Inserta Interoperabilidad e InvoicePeriod en la NC."""
+        if not interop and not period:
+            return nc_xml
+
+        # Buscar CDATA
+        cdata_match = re.search(r'(<!\[CDATA\[)(.*?)(\]\]>)', nc_xml, re.DOTALL)
+
+        if cdata_match:
+            prefix, creditnote, suffix = cdata_match.groups()
+            modified_creditnote = creditnote
+
+            # Insertar Interoperabilidad (después del último UBLExtension)
+            if interop:
+                close_extensions = modified_creditnote.find('</ext:UBLExtensions>')
+                if close_extensions != -1:
+                    # Encontrar el último UBLExtension antes de cerrar UBLExtensions
+                    last_ext = modified_creditnote.rfind('</ext:UBLExtension>', 0, close_extensions)
+                    if last_ext != -1:
+                        insert_pos = last_ext + len('</ext:UBLExtension>')
+                        modified_creditnote = (
+                            modified_creditnote[:insert_pos] +
+                            '\n    ' + interop +
+                            modified_creditnote[insert_pos:]
+                        )
+
+            # Insertar InvoicePeriod (después de DiscrepancyResponse)
+            if period:
+                discrepancy_end = modified_creditnote.find('</cac:DiscrepancyResponse>')
+                if discrepancy_end != -1:
+                    insert_pos = discrepancy_end + len('</cac:DiscrepancyResponse>')
+                    modified_creditnote = (
+                        modified_creditnote[:insert_pos] +
+                        '\n  ' + period +
+                        modified_creditnote[insert_pos:]
+                    )
+
+            # Reconstruir
+            new_cdata = prefix + modified_creditnote + suffix
+            return nc_xml[:cdata_match.start()] + new_cdata + nc_xml[cdata_match.end():]
+
+        # Si no hay CDATA, modificar directamente
+        modified = nc_xml
+
+        if interop:
+            close_extensions = modified.find('</ext:UBLExtensions>')
+            if close_extensions != -1:
+                last_ext = modified.rfind('</ext:UBLExtension>', 0, close_extensions)
+                if last_ext != -1:
+                    insert_pos = last_ext + len('</ext:UBLExtension>')
+                    modified = modified[:insert_pos] + '\n    ' + interop + modified[insert_pos:]
+
+        if period:
+            discrepancy_end = modified.find('</cac:DiscrepancyResponse>')
+            if discrepancy_end != -1:
+                insert_pos = discrepancy_end + len('</cac:DiscrepancyResponse>')
+                modified = modified[:insert_pos] + '\n  ' + period + modified[insert_pos:]
+
+        return modified

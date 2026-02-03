@@ -119,3 +119,51 @@ class TestExtractNCLines:
         xml = '<CreditNote xmlns:cac="urn:cac"></CreditNote>'
         lines = XMLProcessor.extract_nc_lines(xml)
         assert len(lines) == 0
+
+
+class TestInsertSections:
+    def test_insert_both_sections_with_cdata(self):
+        nc_xml = '''<?xml version="1.0"?>
+<AttachedDocument>
+  <cac:Attachment>
+    <cac:ExternalReference>
+      <cbc:Description><![CDATA[
+        <CreditNote xmlns:ext="urn:ext" xmlns:cac="urn:cac">
+          <ext:UBLExtensions>
+            <ext:UBLExtension>Extension1</ext:UBLExtension>
+            <ext:UBLExtension>Extension2</ext:UBLExtension>
+          </ext:UBLExtensions>
+          <cac:DiscrepancyResponse>Response</cac:DiscrepancyResponse>
+          <cac:BillingReference>Ref</cac:BillingReference>
+        </CreditNote>
+      ]]></cbc:Description>
+    </cac:ExternalReference>
+  </cac:Attachment>
+</AttachedDocument>'''
+
+        interop = '<ext:UBLExtension><ext:ExtensionContent><CustomTagGeneral>Interop</CustomTagGeneral></ext:ExtensionContent></ext:UBLExtension>'
+        period = '<cac:InvoicePeriod><cbc:StartDate>2025-01-01</cbc:StartDate></cac:InvoicePeriod>'
+
+        result = XMLProcessor.insert_sections(nc_xml, interop, period)
+
+        assert '<CustomTagGeneral>Interop</CustomTagGeneral>' in result
+        assert '<cac:InvoicePeriod>' in result
+        assert ']]>' in result  # CDATA preserved
+
+    def test_insert_no_cdata(self):
+        nc_xml = '''<CreditNote xmlns:ext="urn:ext" xmlns:cac="urn:cac">
+          <ext:UBLExtensions>
+            <ext:UBLExtension>Extension1</ext:UBLExtension>
+          </ext:UBLExtensions>
+          <cac:DiscrepancyResponse>Response</cac:DiscrepancyResponse>
+        </CreditNote>'''
+
+        interop = '<ext:UBLExtension><CustomTagGeneral>Interop</CustomTagGeneral></ext:UBLExtension>'
+
+        result = XMLProcessor.insert_sections(nc_xml, interop, None)
+        assert '<CustomTagGeneral>Interop</CustomTagGeneral>' in result
+
+    def test_insert_none(self):
+        nc_xml = '<root>content</root>'
+        result = XMLProcessor.insert_sections(nc_xml, None, None)
+        assert result == nc_xml
