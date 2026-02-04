@@ -12,6 +12,15 @@ class Settings(BaseSettings):
     debug: bool = True
     cors_origins: List[str] = ["http://localhost:5173"]
 
+    # Configuración API Ministerio de Salud
+    ministerio_api_url: str = "https://localhost:9443/api"
+    ministerio_api_timeout: int = 30
+
+    # Kimi API
+    kimi_api_key: str = ""
+    kimi_model: str = "kimi-k2.5"
+    kimi_base_url: str = "https://api.moonshot.cn/v1"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

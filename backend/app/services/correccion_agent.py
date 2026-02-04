@@ -1,5 +1,4 @@
 import json
-import os
 from typing import List, Dict, Any
 from openai import AsyncOpenAI
 
@@ -8,6 +7,7 @@ from app.models import (
     CorreccionResponse,
     ValidationError
 )
+from app.config import settings
 
 
 class CorreccionAgent:
@@ -15,10 +15,10 @@ class CorreccionAgent:
 
     def __init__(self):
         self.client = AsyncOpenAI(
-            api_key=os.getenv("KIMI_API_KEY"),
-            base_url="https://api.moonshot.cn/v1"
+            api_key=settings.kimi_api_key,
+            base_url=settings.kimi_base_url
         )
-        self.model = "kimi-k2.5"
+        self.model = settings.kimi_model
 
     async def analizar_errores(
         self,
