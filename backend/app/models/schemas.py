@@ -54,6 +54,7 @@ class MatchingDetail(BaseModel):
     servicio_rips: str
     valor_nc: float
     cantidad_calculada: float
+    cantidad_rips: Optional[float] = None
     confianza: Confianza
 
 
@@ -71,3 +72,50 @@ class PreviewMatchingResponse(BaseModel):
     lineas_nc: List[LineaNC]
     servicios_rips: List[ServicioRIPS]
     matching_sugerido: List[Dict[str, Any]]
+
+
+# Schemas para validación CUV con Ministerio de Salud
+
+class Identificacion(BaseModel):
+    tipo: str
+    numero: str
+
+
+class Persona(BaseModel):
+    identificacion: Identificacion
+
+
+class LoginCredentials(BaseModel):
+    persona: Persona
+    clave: str
+    nit: str
+
+
+class LoginResponse(BaseModel):
+    token: str
+    success: bool
+    message: Optional[str] = None
+
+
+class NCPayload(BaseModel):
+    rips: Dict[str, Any]
+    xmlFevFile: str  # Base64
+
+
+class ValidationError(BaseModel):
+    Clase: str
+    Codigo: str
+    Descripcion: str
+    Fuente: str
+    Observaciones: Optional[str] = None
+    PathFuente: Optional[str] = None
+
+
+class NCValidationResponse(BaseModel):
+    success: bool
+    result_state: Optional[bool] = None  # ResultState del ministerio
+    codigo_unico_validacion: Optional[str] = None  # CUV - 96 caracteres hexadecimales
+    numeroRadicado: Optional[str] = None
+    errores: List[ValidationError] = []
+    notificaciones: List[ValidationError] = []
+    raw_response: Optional[Dict[str, Any]] = None  # Respuesta completa para descarga

@@ -8,4 +8,17 @@ from .schemas import (
     ProcesarNCResponse,
     PreviewMatchingResponse,
     Confianza,
+    LoginCredentials,
+    LoginResponse,
+    NCPayload,
+    ValidationError,
+    NCValidationResponse,
+)
+from .correccion_schemas import (
+    PropuestaCorreccion,
+    CorreccionRequest,
+    CorreccionResponse,
+    CambioAprobado,
+    AplicarCorreccionRequest,
+    AplicarCorreccionResponse,
 )
