@@ -4,13 +4,15 @@ import ResultsView from './components/ResultsView'
 import SisproLoginModal from './components/SisproLoginModal'
 import ValidationReview from './components/ValidationReview'
 import ValidationResults from './components/ValidationResults'
-import CorreccionPanel from './components/CorreccionPanel'
+import CorreccionPanel, { type ManualCorrection } from './components/CorreccionPanel'
 import { ValidationProvider, useValidation } from './context/ValidationContext'
 import { procesarNC, downloadFile, downloadJSON } from './utils/api'
 import { enviarNCMinisterio, xmlToBase64, analizarErrores, aplicarCorrecciones } from './services/validationApi'
 import type { ProcessNCResponse } from './utils/api'
 import type { NCValidationResponse, CambioAprobado, CorreccionResponse } from './services/validationApi'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, Home } from 'lucide-react'
+import { BatchUploadPanel, BatchProgress } from './components/BatchProcessor'
+import type { FolderInfo } from './services/batchApi'
 
 function AppContent() {
   const [ncXml, setNcXml] = useState<File | null>(null)
@@ -31,7 +33,12 @@ function AppContent() {
   const [correccionLoading, setCorreccionLoading] = useState(false)
   const [correccionData, setCorreccionData] = useState<CorreccionResponse | null>(null)
 
-  const { token, setToken, isAuthenticated } = useValidation()
+  // Estados para procesamiento masivo
+  const [showBatchMode, setShowBatchMode] = useState(false)
+  const [batchFolders, setBatchFolders] = useState<FolderInfo[]>([])
+  const [batchPath, setBatchPath] = useState('')
+
+  const { token, setToken, clearToken, isAuthenticated } = useValidation()
 
   const canSubmit = ncXml && facturaXml && facturaRips
 
@@ -92,9 +99,24 @@ function AppContent() {
       const response = await enviarNCMinisterio(payload, token!)
       setValidationResult(response)
       setValidationStep('results')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al enviar validación')
-      setValidationStep('none')
+    } catch (err: any) {
+      // Detectar error 401 - Token expirado
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      const isAuthError = err?.response?.status === 401 ||
+                         errorMessage.includes('401') ||
+                         errorMessage.toLowerCase().includes('unauthorized') ||
+                         errorMessage.toLowerCase().includes('token expirado') ||
+                         errorMessage.toLowerCase().includes('sesión expirada')
+
+      if (isAuthError) {
+        // Limpiar token expirado
+        clearToken()
+        setError('Su sesión ha expirado. Por favor, inicie sesión nuevamente.')
+        setValidationStep('login')
+      } else {
+        setError(err instanceof Error ? err.message : 'Error al enviar validación')
+        setValidationStep('none')
+      }
     } finally {
       setIsSubmittingValidation(false)
     }
@@ -160,17 +182,90 @@ function AppContent() {
     }
   }
 
+  const handleReset = () => {
+    // Limpiar archivos
+    setNcXml(null)
+    setFacturaXml(null)
+    setFacturaRips(null)
+    setEsCasoColesterol(false)
+
+    // Limpiar resultados y errores
+    setResult(null)
+    setError(null)
+    setLoading(false)
+
+    // Limpiar estado de validación
+    setValidationStep('none')
+    setValidationResult(null)
+    setIsSubmittingValidation(false)
+
+    // Limpiar corrección
+    setShowCorreccion(false)
+    setCorreccionData(null)
+    setCorreccionLoading(false)
+
+    // Limpiar batch mode
+    setShowBatchMode(false)
+    setBatchFolders([])
+    setBatchPath('')
+  }
+
+  const handleFoldersSelected = (folders: FolderInfo[], path: string) => {
+    setBatchFolders(folders)
+    setBatchPath(path)
+  }
+
   return (
     <div className="min-h-screen py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-center mb-2">
-          NC Processor
-        </h1>
-        <p className="text-gray-600 text-center mb-8">
-          Generación de Notas Crédito con Interoperabilidad - Sector Salud
-        </p>
+        {/* Header con botón de Home */}
+        <div className="relative mb-8">
+          <button
+            onClick={handleReset}
+            className="absolute right-0 top-0 flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+            title="Volver al inicio"
+          >
+            <Home size={18} />
+            <span className="hidden sm:inline">Inicio</span>
+          </button>
+          <h1 className="text-3xl font-bold text-center mb-2">
+            NC Processor
+          </h1>
+          <p className="text-gray-600 text-center">
+            Generación de Notas Crédito con Interoperabilidad - Sector Salud
+          </p>
+        </div>
 
-        {/* File Upload Section */}
+        {/* Toggle Mode */}
+        <div className="flex justify-center mb-6">
+          <div className="inline-flex bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setShowBatchMode(false)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                !showBatchMode
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Individual
+            </button>
+            <button
+              onClick={() => setShowBatchMode(true)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                showBatchMode
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Masivo (Batch)
+            </button>
+          </div>
+        </div>
+
+        {/* Individual Mode */}
+        {!showBatchMode && (
+          <>
+            {/* File Upload Section */}
         {!result && (
           <FileUpload
             ncXml={ncXml}
@@ -195,7 +290,24 @@ function AppContent() {
             onDownloadXML={handleDownloadXML}
             onDownloadJSON={handleDownloadJSON}
             onValidarCUV={handleValidarCUV}
+            isAuthenticated={isAuthenticated}
           />
+        )}
+
+        {/* Mensaje de sesión expirada */}
+        {error?.includes('sesión ha expirado') && (
+          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-400 rounded-lg">
+            <p className="text-yellow-800 font-medium">{error}</p>
+            <button
+              onClick={() => {
+                setError(null)
+                setValidationStep('login')
+              }}
+              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Iniciar sesión
+            </button>
+          </div>
         )}
 
         {/* Validation Review Section */}
@@ -215,6 +327,7 @@ function AppContent() {
             result={validationResult}
             onRetry={handleValidationRetry}
             onClose={handleValidationClose}
+            numeroNotaCredito={result?.numero_nota_credito}
           />
         )}
 
@@ -245,7 +358,22 @@ function AppContent() {
               setCorreccionData(null)
             }}
             isLoading={correccionLoading}
+            erroresOriginales={validationResult?.errores || []}
+            xmlContent={result?.nc_xml_completo}
+            ripsJson={result?.nc_rips_json}
           />
+        )}
+          </>
+        )}
+
+        {/* Batch Mode */}
+        {showBatchMode && (
+          <>
+            <BatchUploadPanel onFoldersSelected={handleFoldersSelected} />
+            {batchFolders.length > 0 && (
+              <BatchProgress folders={batchFolders} folderPath={batchPath} />
+            )}
+          </>
         )}
       </div>
 
