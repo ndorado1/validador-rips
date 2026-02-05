@@ -5,6 +5,7 @@ This module provides functionality to orchestrate the batch processing of NC fol
 including token management, progress tracking, and result generation.
 """
 
+import asyncio
 import base64
 import csv
 import io
@@ -97,17 +98,19 @@ class BatchProcessor:
         self.on_token_expired: Optional[Callable[[], str]] = None
         self.on_progress: Optional[Callable[[BatchState], None]] = None
 
-    def create_batch(self, folders: List[FolderInfo]) -> str:
+    def create_batch(self, folders: List[FolderInfo], batch_id: Optional[str] = None) -> str:
         """Create a new batch job.
 
         Args:
             folders: List of FolderInfo objects to process
+            batch_id: Optional batch ID to use (if not provided, generates one)
 
         Returns:
             batch_id: Unique identifier for the batch
         """
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        batch_id = f"batch_{timestamp}_{len(folders)}"
+        if batch_id is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            batch_id = f"batch_{timestamp}_{len(folders)}"
 
         state = BatchState(
             batch_id=batch_id,
@@ -160,7 +163,7 @@ class BatchProcessor:
         state.token_sispro = token
 
         try:
-            for folder in folders:
+            for i, folder in enumerate(folders):
                 try:
                     result = await self.process_folder(
                         folder.path,
@@ -175,6 +178,11 @@ class BatchProcessor:
                         state.exitosos += 1
                     else:
                         state.errores += 1
+
+                    # Delay entre carpetas para evitar rate limit de LLM
+                    # Moonshot tiene límites de ~10-20 req/s, con 0.5s estamos seguros
+                    if i < len(folders) - 1:  # No esperar después de la última
+                        await asyncio.sleep(0.5)
 
                 except Exception as e:
                     # Mark error but continue processing other folders
@@ -522,7 +530,7 @@ class BatchProcessor:
             resultados: List of BatchResult objects
 
         Returns:
-            CSV string with columns: carpeta, numero_nc, error
+            CSV string with columns: carpeta, numero_nc, error, detalle_completo
         """
         errores = [r for r in resultados if not r.exitoso]
 
@@ -531,13 +539,22 @@ class BatchProcessor:
 
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["carpeta", "numero_nc", "error"])
+        writer.writerow(["carpeta", "numero_nc", "error", "detalle_completo"])
 
         for error in errores:
+            # Capturar todo el detalle como JSON
+            detalle_completo = ""
+            if error.raw_response:
+                try:
+                    detalle_completo = json.dumps(error.raw_response, ensure_ascii=False, indent=2)
+                except Exception as e:
+                    detalle_completo = str(error.raw_response)
+
             writer.writerow([
                 error.carpeta,
                 error.numero_nc,
-                error.error or "Unknown error"
+                error.error or "Unknown error",
+                detalle_completo
             ])
 
         return output.getvalue()

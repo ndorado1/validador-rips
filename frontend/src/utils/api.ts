@@ -18,21 +18,25 @@ export interface ProcessNCResponse {
     servicio_rips: string
     valor_nc: number
     cantidad_calculada: number
+    cantidad_rips: number | null
     confianza: string
   }>
   warnings: string[]
   errors: string[]
+  numero_nota_credito?: string
 }
 
 export async function procesarNC(
   ncXml: File,
   facturaXml: File,
-  facturaRips: File
+  facturaRips: File,
+  esCasoColesterol: boolean = false
 ): Promise<ProcessNCResponse> {
   const formData = new FormData()
   formData.append('nc_xml', ncXml)
   formData.append('factura_xml', facturaXml)
   formData.append('factura_rips', facturaRips)
+  formData.append('es_caso_colesterol', esCasoColesterol.toString())
 
   const response = await axios.post(`${API_URL}/procesar`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }

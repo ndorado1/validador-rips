@@ -28,7 +28,10 @@ class XMLProcessor:
         match = re.search(pattern, embedded, re.DOTALL)
 
         if match:
-            return match.group(1)
+            interop_section = match.group(1)
+            # Corregir schemeID de COBERTURA_PLAN_BENEFICIOS de 01 a 10
+            interop_section = XMLProcessor._fix_cobertura_scheme_id(interop_section)
+            return interop_section
 
         # Fallback: buscar solo CustomTagGeneral
         pattern2 = r'(<CustomTagGeneral>.*?<Interoperabilidad>.*?</Interoperabilidad>.*?</CustomTagGeneral>)'
@@ -36,6 +39,8 @@ class XMLProcessor:
         if match2:
             # Envolver en UBLExtension
             content = match2.group(1)
+            # Corregir schemeID de COBERTURA_PLAN_BENEFICIOS de 01 a 10
+            content = XMLProcessor._fix_cobertura_scheme_id(content)
             return f'<ext:UBLExtension>\n      <ext:ExtensionContent>\n        {content}\n      </ext:ExtensionContent>\n    </ext:UBLExtension>'
 
         return None
@@ -157,3 +162,41 @@ class XMLProcessor:
                 modified = modified[:insert_pos] + '\n  ' + period + modified[insert_pos:]
 
         return modified
+
+    @staticmethod
+    def _fix_cobertura_scheme_id(interop_content: str) -> str:
+        """Cambia schemeID de COBERTURA_PLAN_BENEFICIOS de 01 a 10."""
+        # Reemplazar schemeID="01" por schemeID="10" cuando el campo es COBERTURA_PLAN_BENEFICIOS
+        # El schemeID viene como atributo: <Value schemeID="01" ...>
+
+        # Buscar <Name>COBERTURA_PLAN_BENEFICIOS</Name> seguido de <Value schemeID="01" ...>
+        # y reemplazar por schemeID="10"
+        result = re.sub(
+            r'(<Name>COBERTURA_PLAN_BENEFICIOS</Name>\s*<Value[^>]*schemeID=")01(")',
+            r'\g<1>10\g<2>',
+            interop_content,
+            flags=re.DOTALL
+        )
+
+        return result
+
+    @staticmethod
+    def aplicar_caso_colesterol(nc_xml: str) -> str:
+        """Aplica el caso especial de colesterol: pone todos los valores monetarios en 0.00."""
+        # Reemplazar valores monetarios en el XML por 0.00
+        result = nc_xml
+
+        # Reemplazar en elementos de monto
+        montos = ['LineExtensionAmount', 'TaxExclusiveAmount', 'TaxInclusiveAmount',
+                  'PrepaidAmount', 'PayableAmount', 'PriceAmount']
+
+        for monto in montos:
+            # Buscar valores como >38900.00<, >38900<, >38900.0000<
+            pattern = rf'(<cbc:{monto}[^>]*>)[\d.]+(</cbc:{monto}>)'
+            result = re.sub(pattern, r'\g<1>0.00\g<2>', result)
+
+        # Reemplazar CreditedQuantity y BaseQuantity
+        result = re.sub(r'(<cbc:CreditedQuantity[^>]*>)[\d.]+(</cbc:CreditedQuantity>)', r'\g<1>0.00\g<2>', result)
+        result = re.sub(r'(<cbc:BaseQuantity[^>]*>)[\d.]+(</cbc:BaseQuantity>)', r'\g<1>0.00\g<2>', result)
+
+        return result

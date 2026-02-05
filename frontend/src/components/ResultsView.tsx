@@ -1,4 +1,4 @@
-import { CheckCircle, AlertCircle, Download } from 'lucide-react'
+import { CheckCircle, AlertCircle, Download, ShieldCheck, UserCheck, UserX } from 'lucide-react'
 import { downloadFile, downloadJSON } from '../utils/api'
 import type { ProcessNCResponse } from '../utils/api'
 
@@ -6,9 +6,11 @@ interface ResultsViewProps {
   result: ProcessNCResponse
   onDownloadXML: () => void
   onDownloadJSON: () => void
+  onValidarCUV?: () => void
+  isAuthenticated?: boolean
 }
 
-export default function ResultsView({ result, onDownloadXML, onDownloadJSON }: ResultsViewProps) {
+export default function ResultsView({ result, onDownloadXML, onDownloadJSON, onValidarCUV, isAuthenticated }: ResultsViewProps) {
   return (
     <div className="bg-white rounded-lg shadow-md p-6 mt-6">
       <h2 className="text-xl font-semibold mb-4">Resultados</h2>
@@ -68,7 +70,7 @@ export default function ResultsView({ result, onDownloadXML, onDownloadJSON }: R
                   <th className="px-3 py-2 text-left">Descripción NC</th>
                   <th className="px-3 py-2 text-left">Servicio RIPS</th>
                   <th className="px-3 py-2 text-right">Valor</th>
-                  <th className="px-3 py-2 text-right">Cantidad</th>
+                  <th className="px-3 py-2 text-right">Cantidad RIPS</th>
                   <th className="px-3 py-2 text-center">Confianza</th>
                 </tr>
               </thead>
@@ -81,7 +83,7 @@ export default function ResultsView({ result, onDownloadXML, onDownloadJSON }: R
                     </td>
                     <td className="px-3 py-2">{detail.servicio_rips}</td>
                     <td className="px-3 py-2 text-right">${detail.valor_nc.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-right">{detail.cantidad_calculada}</td>
+                    <td className="px-3 py-2 text-right">{detail.cantidad_rips ?? 'N/A'}</td>
                     <td className="px-3 py-2 text-center">
                       <span className={`px-2 py-1 rounded text-xs ${
                         detail.confianza === 'alta' ? 'bg-green-100 text-green-800' :
@@ -121,7 +123,7 @@ export default function ResultsView({ result, onDownloadXML, onDownloadJSON }: R
 
       {/* Download Buttons */}
       {result.success && (
-        <div className="flex gap-4 mt-6">
+        <div className="flex flex-wrap gap-4 mt-6">
           <button
             onClick={onDownloadXML}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -136,6 +138,44 @@ export default function ResultsView({ result, onDownloadXML, onDownloadJSON }: R
             <Download size={18} />
             Descargar RIPS JSON
           </button>
+          {onValidarCUV && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onValidarCUV}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <ShieldCheck size={18} />
+                Validar CUV
+              </button>
+              {/* Indicador de sesión */}
+              {isAuthenticated !== undefined && (
+                <span
+                  className={`flex items-center gap-1 text-xs px-2 py-1 rounded ${
+                    isAuthenticated
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-yellow-100 text-yellow-700'
+                  }`}
+                  title={
+                    isAuthenticated
+                      ? 'Sesión activa - Puede validar directamente'
+                      : 'Sin sesión activa - Se solicitará login antes de validar'
+                  }
+                >
+                  {isAuthenticated ? (
+                    <>
+                      <UserCheck size={12} />
+                      Sesión activa
+                    </>
+                  ) : (
+                    <>
+                      <UserX size={12} />
+                      Sin sesión
+                    </>
+                  )}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

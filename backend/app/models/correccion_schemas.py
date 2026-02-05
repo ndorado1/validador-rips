@@ -25,7 +25,8 @@ class CorreccionResponse(BaseModel):
 
 
 class CambioAprobado(BaseModel):
-    ruta_json: str
+    ruta_json: Optional[str] = None
+    ruta_xml: Optional[str] = None
     valor_nuevo: Any
 
 

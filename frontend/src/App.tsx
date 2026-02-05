@@ -33,10 +33,13 @@ function AppContent() {
   const [correccionLoading, setCorreccionLoading] = useState(false)
   const [correccionData, setCorreccionData] = useState<CorreccionResponse | null>(null)
 
+  // Estado para auto-reenvío tras re-login (preserva correcciones)
+  const [pendingResubmit, setPendingResubmit] = useState(false)
+
   // Estados para procesamiento masivo
   const [showBatchMode, setShowBatchMode] = useState(false)
   const [batchFolders, setBatchFolders] = useState<FolderInfo[]>([])
-  const [batchPath, setBatchPath] = useState('')
+  const [batchId, setBatchId] = useState('')
 
   const { token, setToken, clearToken, isAuthenticated } = useValidation()
 
@@ -81,13 +84,27 @@ function AppContent() {
 
   const handleLoginSuccess = (newToken: string) => {
     setToken(newToken)
-    setValidationStep('review')
+    if (pendingResubmit) {
+      // Auto-reenviar con el nuevo token (preserva correcciones)
+      setPendingResubmit(false)
+      setError(null)
+      submitToMinisterio(newToken)
+    } else {
+      setValidationStep('review')
+    }
   }
 
-  const handleValidationSubmit = async () => {
+  const submitToMinisterio = async (tokenOverride?: string) => {
     if (!result) return
 
+    const tokenToUse = tokenOverride || token
+    if (!tokenToUse) {
+      setValidationStep('login')
+      return
+    }
+
     setIsSubmittingValidation(true)
+    setValidationStep('review')
     setError(null)
 
     try {
@@ -96,7 +113,7 @@ function AppContent() {
         xmlFevFile: xmlToBase64(result.nc_xml_completo)
       }
 
-      const response = await enviarNCMinisterio(payload, token!)
+      const response = await enviarNCMinisterio(payload, tokenToUse)
       setValidationResult(response)
       setValidationStep('results')
     } catch (err: any) {
@@ -109,22 +126,31 @@ function AppContent() {
                          errorMessage.toLowerCase().includes('sesión expirada')
 
       if (isAuthError) {
-        // Limpiar token expirado
         clearToken()
-        setError('Su sesión ha expirado. Por favor, inicie sesión nuevamente.')
+        setPendingResubmit(true)
+        setError('Sesión expirada. Inicie sesión para reenviar automáticamente los datos corregidos.')
         setValidationStep('login')
       } else {
         setError(err instanceof Error ? err.message : 'Error al enviar validación')
-        setValidationStep('none')
+        setValidationStep('review')
       }
     } finally {
       setIsSubmittingValidation(false)
     }
   }
 
+  const handleValidationSubmit = async () => {
+    await submitToMinisterio()
+  }
+
   const handleValidationRetry = () => {
-    setValidationStep('review')
     setValidationResult(null)
+    if (isAuthenticated) {
+      setValidationStep('review')
+    } else {
+      // Token caducado: pedir login primero, luego irá a review
+      setValidationStep('login')
+    }
   }
 
   const handleValidationClose = () => {
@@ -135,9 +161,22 @@ function AppContent() {
   const handleIniciarCorreccion = async () => {
     if (!validationResult) return
 
-    setCorreccionLoading(true)
+    // Mostrar panel de corrección directamente sin llamar a la IA
+    // Los errores de validación se mostrarán como "requieren revisión manual"
     setShowCorreccion(true)
+    setCorreccionData({
+      propuestas: [],
+      requieren_revision_manual: validationResult.errores.map(e => ({
+        error_codigo: e.Codigo,
+        error_descripcion: e.Descripcion,
+        motivo: 'Requiere corrección manual'
+      }))
+    })
 
+    // Nota: La llamada a la IA está deshabilitada temporalmente.
+    // Para reactivarla en el futuro, descomentar el código siguiente:
+    /*
+    setCorreccionLoading(true)
     try {
       const response = await analizarErrores(
         validationResult.errores,
@@ -151,6 +190,7 @@ function AppContent() {
     } finally {
       setCorreccionLoading(false)
     }
+    */
   }
 
   const handleAplicarCorrecciones = async (cambios: CambioAprobado[]) => {
@@ -198,6 +238,7 @@ function AppContent() {
     setValidationStep('none')
     setValidationResult(null)
     setIsSubmittingValidation(false)
+    setPendingResubmit(false)
 
     // Limpiar corrección
     setShowCorreccion(false)
@@ -207,12 +248,12 @@ function AppContent() {
     // Limpiar batch mode
     setShowBatchMode(false)
     setBatchFolders([])
-    setBatchPath('')
+    setBatchId('')
   }
 
-  const handleFoldersSelected = (folders: FolderInfo[], path: string) => {
+  const handleFoldersSelected = (folders: FolderInfo[], newBatchId: string) => {
     setBatchFolders(folders)
-    setBatchPath(path)
+    setBatchId(newBatchId)
   }
 
   return (
@@ -294,18 +335,19 @@ function AppContent() {
           />
         )}
 
-        {/* Mensaje de sesión expirada */}
-        {error?.includes('sesión ha expirado') && (
+        {/* Mensaje de sesión expirada (solo si no está en login) */}
+        {error?.toLowerCase().includes('sesión expir') && validationStep !== 'login' && (
           <div className="mb-4 p-4 bg-yellow-50 border border-yellow-400 rounded-lg">
             <p className="text-yellow-800 font-medium">{error}</p>
             <button
               onClick={() => {
                 setError(null)
+                setPendingResubmit(true)
                 setValidationStep('login')
               }}
               className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              Iniciar sesión
+              Iniciar sesión y reenviar
             </button>
           </div>
         )}
@@ -331,7 +373,7 @@ function AppContent() {
           />
         )}
 
-        {/* Botón para corregir con IA cuando hay errores */}
+        {/* Botón para corregir archivos cuando hay errores */}
         {validationStep === 'results' && validationResult?.errores.length > 0 && !showCorreccion && (
           <div className="mt-4">
             <button
@@ -339,10 +381,10 @@ function AppContent() {
               className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
             >
               <Sparkles size={18} />
-              <span>Corregir con IA</span>
+              <span>Corregir Archivos</span>
             </button>
             <p className="text-sm text-gray-500 mt-2">
-              El agente de IA analizará los errores y proponerá correcciones.
+              Crea correcciones manuales para los errores encontrados.
             </p>
           </div>
         )}
@@ -371,7 +413,7 @@ function AppContent() {
           <>
             <BatchUploadPanel onFoldersSelected={handleFoldersSelected} />
             {batchFolders.length > 0 && (
-              <BatchProgress folders={batchFolders} folderPath={batchPath} />
+              <BatchProgress folders={batchFolders} batchId={batchId} />
             )}
           </>
         )}
@@ -380,7 +422,10 @@ function AppContent() {
       {/* Login Modal */}
       <SisproLoginModal
         isOpen={validationStep === 'login'}
-        onClose={() => setValidationStep('none')}
+        onClose={() => {
+          setPendingResubmit(false)
+          setValidationStep('none')
+        }}
         onLoginSuccess={handleLoginSuccess}
       />
     </div>

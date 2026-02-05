@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 const VALIDATION_API_URL = '/api/validation'
+const CORRECTION_API_URL = '/api/correccion'
 
 export interface LoginCredentials {
   tipoDocumento: string
@@ -43,14 +44,20 @@ export interface PropuestaCorreccion {
 export interface CorreccionResponse {
   propuestas: PropuestaCorreccion[]
   requieren_revision_manual: Array<{
-    codigo: string
-    descripcion: string
-    razon: string
+    // Backend puede enviar en diferentes formatos
+    codigo?: string
+    descripcion?: string
+    razon?: string
+    error_codigo?: string
+    error_descripcion?: string
+    motivo?: string
+    error?: ValidationError  // Cuando el agente no propone corrección
   }>
 }
 
 export interface CambioAprobado {
-  ruta_json: string
+  ruta_json?: string
+  ruta_xml?: string
   valor_nuevo: any
 }
 
@@ -115,11 +122,16 @@ export async function checkValidationStatus(): Promise<{ connected: boolean; mes
 }
 
 export function xmlToBase64(xmlContent: string): string {
-  // Convertir string a base64 sin el prefijo data:...
+  // Convertir string a base64 (chunked para soportar XMLs grandes)
   const encoder = new TextEncoder()
   const data = encoder.encode(xmlContent)
-  const base64 = btoa(String.fromCharCode(...data))
-  return base64
+  let binary = ''
+  const chunkSize = 8192
+  for (let i = 0; i < data.length; i += chunkSize) {
+    const chunk = data.subarray(i, Math.min(i + chunkSize, data.length))
+    binary += String.fromCharCode(...chunk)
+  }
+  return btoa(binary)
 }
 
 export function formatValidationErrors(errors: ValidationError[]): string {
@@ -132,7 +144,7 @@ export async function analizarErrores(
   ripsJson: Record<string, unknown>
 ): Promise<CorreccionResponse> {
   const response = await axios.post<CorreccionResponse>(
-    `${VALIDATION_API_URL}/correccion/analizar`,
+    `${CORRECTION_API_URL}/analizar`,
     {
       errores,
       xml_content: xmlContent,
@@ -146,7 +158,7 @@ export async function aplicarCorrecciones(
   request: AplicarCorreccionRequest
 ): Promise<AplicarCorreccionResponse> {
   const response = await axios.post<AplicarCorreccionResponse>(
-    `${VALIDATION_API_URL}/correccion/aplicar`,
+    `${CORRECTION_API_URL}/aplicar`,
     request
   )
   return response.data

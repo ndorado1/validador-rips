@@ -66,6 +66,7 @@ class ProcesarNCResponse(BaseModel):
     matching_details: List[MatchingDetail]
     warnings: List[str]
     errors: List[str]
+    numero_nota_credito: Optional[str] = None  # Número de NC extraído del XML
 
 
 class PreviewMatchingResponse(BaseModel):

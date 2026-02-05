@@ -1,44 +1,43 @@
 import { useRef, useState } from 'react'
-import { FolderOpen, RefreshCw, AlertCircle } from 'lucide-react'
-import { scanFolders, FolderInfo } from '../../services/batchApi'
+import { Upload, RefreshCw, AlertCircle, FileArchive } from 'lucide-react'
+import { uploadAndScanZip, FolderInfo } from '../../services/batchApi'
 
 interface BatchUploadPanelProps {
-  onFoldersSelected: (folders: FolderInfo[], path: string) => void
+  onFoldersSelected: (folders: FolderInfo[], batchId: string) => void
 }
 
 export default function BatchUploadPanel({ onFoldersSelected }: BatchUploadPanelProps) {
-  const folderInputRef = useRef<HTMLInputElement>(null)
-  const [selectedFolderName, setSelectedFolderName] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleButtonClick = () => {
-    folderInputRef.current?.click()
+    fileInputRef.current?.click()
   }
 
-  const handleFolderSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
     if (!files || files.length === 0) return
 
+    const file = files[0]
+    if (!file.name.endsWith('.zip')) {
+      setError('Por favor seleccione un archivo ZIP')
+      return
+    }
+
     setError(null)
     setLoading(true)
+    setSelectedFileName(file.name)
 
     try {
-      // Extract folder name from webkitRelativePath
-      const relativePath = files[0].webkitRelativePath
-      const folderName = relativePath.split('/')[0]
-      setSelectedFolderName(folderName)
-
-      // Simulate full path (in real scenario, this would come from backend)
-      const folderPath = `/uploads/${folderName}`
-
-      // Call scanFolders API
-      const result = await scanFolders(folderPath)
+      // Subir ZIP y escanear
+      const result = await uploadAndScanZip(file)
 
       // Call callback with scanned folders
-      onFoldersSelected(result.carpetas, folderPath)
+      onFoldersSelected(result.carpetas, result.batch_id)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error al escanear la carpeta'
+      const errorMessage = err instanceof Error ? err.message : 'Error al procesar el ZIP'
       setError(errorMessage)
     } finally {
       setLoading(false)
@@ -48,20 +47,20 @@ export default function BatchUploadPanel({ onFoldersSelected }: BatchUploadPanel
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex items-center gap-3 mb-4">
-        <FolderOpen className="text-blue-600" size={28} />
+        <FileArchive className="text-blue-600" size={28} />
         <h2 className="text-xl font-semibold text-gray-800">Procesamiento Masivo</h2>
       </div>
 
       <p className="text-gray-600 mb-6">
-        Seleccione una carpeta que contenga subcarpetas con los archivos de Notas Crédito,
-        Facturas y RIPS. Cada subcarpeta debe contener los 3 archivos correspondientes.
+        Comprima la carpeta padre (que contiene todas las subcarpetas con NC) en un archivo ZIP.
+        Cada subcarpeta debe contener los 3 archivos: Factura XML (PMD), Nota Crédito XML (NC) y RIPS JSON.
       </p>
 
       <input
-        ref={folderInputRef}
+        ref={fileInputRef}
         type="file"
-        {...{ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>}
-        onChange={handleFolderSelect}
+        accept=".zip"
+        onChange={handleFileSelect}
         className="hidden"
       />
 
@@ -80,20 +79,20 @@ export default function BatchUploadPanel({ onFoldersSelected }: BatchUploadPanel
         {loading ? (
           <>
             <RefreshCw className="animate-spin" size={20} />
-            Escaneando carpetas...
+            Subiendo y escaneando...
           </>
         ) : (
           <>
-            <FolderOpen size={20} />
-            Seleccionar Carpeta
+            <Upload size={20} />
+            Subir Archivo ZIP
           </>
         )}
       </button>
 
-      {selectedFolderName && !loading && (
+      {selectedFileName && !loading && (
         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800">
-            <span className="font-medium">Carpeta seleccionada:</span> {selectedFolderName}
+            <span className="font-medium">Archivo seleccionado:</span> {selectedFileName}
           </p>
         </div>
       )}

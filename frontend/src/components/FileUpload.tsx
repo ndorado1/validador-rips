@@ -1,49 +1,35 @@
-import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import FileDropZone from './FileDropZone'
-import ResultsView from './ResultsView'
-import { procesarNC, downloadFile, downloadJSON } from '../utils/api'
-import type { ProcessNCResponse } from '../utils/api'
 
-export default function FileUpload() {
-  const [ncXml, setNcXml] = useState<File | null>(null)
-  const [facturaXml, setFacturaXml] = useState<File | null>(null)
-  const [facturaRips, setFacturaRips] = useState<File | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<ProcessNCResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
+interface FileUploadProps {
+  ncXml: File | null
+  setNcXml: (file: File | null) => void
+  facturaXml: File | null
+  setFacturaXml: (file: File | null) => void
+  facturaRips: File | null
+  setFacturaRips: (file: File | null) => void
+  esCasoColesterol: boolean
+  setEsCasoColesterol: (value: boolean) => void
+  loading: boolean
+  canSubmit: boolean
+  onSubmit: () => void
+  error: string | null
+}
 
-  const canSubmit = ncXml && facturaXml && facturaRips
-
-  const handleSubmit = async () => {
-    if (!canSubmit) return
-
-    setLoading(true)
-    setError(null)
-    setResult(null)
-
-    try {
-      const response = await procesarNC(ncXml, facturaXml, facturaRips)
-      setResult(response)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error desconocido')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleDownloadXML = () => {
-    if (result?.nc_xml_completo) {
-      downloadFile(result.nc_xml_completo, 'NC_con_interoperabilidad.xml', 'application/xml')
-    }
-  }
-
-  const handleDownloadJSON = () => {
-    if (result?.nc_rips_json) {
-      downloadJSON(result.nc_rips_json, 'NC_RIPS.json')
-    }
-  }
-
+export default function FileUpload({
+  ncXml,
+  setNcXml,
+  facturaXml,
+  setFacturaXml,
+  facturaRips,
+  setFacturaRips,
+  esCasoColesterol,
+  setEsCasoColesterol,
+  loading,
+  canSubmit,
+  onSubmit,
+  error
+}: FileUploadProps) {
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -67,8 +53,26 @@ export default function FileUpload() {
         />
       </div>
 
+      <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={esCasoColesterol}
+            onChange={(e) => setEsCasoColesterol(e.target.checked)}
+            className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+          />
+          <span className="text-sm font-medium text-gray-700">
+            Caso especial: Contiene Colesterol de Baja Densidad (903816)
+          </span>
+        </label>
+        <p className="mt-2 text-xs text-gray-500 ml-8">
+          Marque esta opción si la NC incluye el procedimiento 903816 (Colesterol de Baja Densidad).
+          Esto pondrá los valores monetarios en 0.00 y el vrServicio del procedimiento en 0.
+        </p>
+      </div>
+
       <button
-        onClick={handleSubmit}
+        onClick={onSubmit}
         disabled={!canSubmit || loading}
         className={`
           w-full py-3 px-4 rounded-lg font-medium transition-colors
@@ -92,14 +96,6 @@ export default function FileUpload() {
         <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-lg">
           {error}
         </div>
-      )}
-
-      {result && (
-        <ResultsView
-          result={result}
-          onDownloadXML={handleDownloadXML}
-          onDownloadJSON={handleDownloadJSON}
-        />
       )}
     </div>
   )

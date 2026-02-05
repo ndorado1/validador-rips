@@ -70,7 +70,8 @@ class RIPSProcessor:
     def generate_nc_rips(
         rips_data: Dict[str, Any],
         num_nota: str,
-        matches: List[Dict[str, Any]]
+        matches: List[Dict[str, Any]],
+        es_caso_colesterol: bool = False
     ) -> Dict[str, Any]:
         """Genera el RIPS filtrado para la Nota Crédito."""
         # Copiar estructura base
@@ -125,7 +126,8 @@ class RIPSProcessor:
                 elif tipo == 'procedimientos':
                     nc_usuario['servicios']['procedimientos'] = RIPSProcessor._process_procedimientos(
                         servicios_originales.get('procedimientos', []),
-                        tipo_matches
+                        tipo_matches,
+                        es_caso_colesterol
                     )
                 elif tipo == 'consultas':
                     nc_usuario['servicios']['consultas'] = RIPSProcessor._process_consultas(
@@ -180,7 +182,7 @@ class RIPSProcessor:
         return result
 
     @staticmethod
-    def _process_procedimientos(proc_originales: List[Dict], matches: List[Dict]) -> List[Dict]:
+    def _process_procedimientos(proc_originales: List[Dict], matches: List[Dict], es_caso_colesterol: bool = False) -> List[Dict]:
         """Procesa procedimientos para la NC."""
         result = []
         for match in matches:
@@ -188,8 +190,13 @@ class RIPSProcessor:
             for proc in proc_originales:
                 if proc.get('codProcedimiento') == codigo:
                     proc_nc = {k: v for k, v in proc.items()}
-                    proc_nc['cantidad'] = match['cantidad_calculada']
-                    proc_nc['vrServicio'] = match['valor_nc']
+                    # Procedimientos en RIPS no tienen campo cantidad
+                    # Solo actualizamos el valor del servicio
+                    valor = match['valor_nc']
+                    # Caso especial: si es caso de colesterol y el código es 903816, poner valor en 0
+                    if es_caso_colesterol and codigo == '903816':
+                        valor = 0
+                    proc_nc['vrServicio'] = valor
                     proc_nc['consecutivo'] = len(result) + 1
                     result.append(proc_nc)
                     break

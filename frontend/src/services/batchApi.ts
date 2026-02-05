@@ -11,16 +11,18 @@ export interface FolderInfo {
     rips: string
   }
   es_caso_especial: boolean
+  estado: string
 }
 
 export interface ScanResponse {
   total: number
   carpetas: FolderInfo[]
   errores_scan: string[]
+  batch_id: string
 }
 
 export interface BatchStartRequest {
-  folder_path: string
+  batch_id: string
   carpetas: string[]
   sispro_token: string
 }
@@ -34,22 +36,27 @@ export interface BatchStartResponse {
 export interface BatchStatusResponse {
   batch_id: string
   estado: string
-  progreso: number
+  progreso: number  // Porcentaje 0-100
+  completadas: number  // Número de carpetas procesadas
   total: number
   exitosos: number
   errores: number
   detalles: Array<{
     carpeta: string
+    numero_nc: string
+    exitoso: boolean
     estado: string
     cuv?: string
     error?: string
-    es_caso_especial: boolean
   }>
 }
 
-export async function scanFolders(folderPath: string): Promise<ScanResponse> {
-  const response = await axios.post<ScanResponse>(`${BATCH_API_URL}/scan`, {
-    folder_path: folderPath
+export async function uploadAndScanZip(zipFile: File): Promise<ScanResponse> {
+  const formData = new FormData()
+  formData.append('zip_file', zipFile)
+
+  const response = await axios.post<ScanResponse>(`${BATCH_API_URL}/upload-and-scan`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
   })
   return response.data
 }
