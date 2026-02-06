@@ -77,6 +77,7 @@ class BatchDetalle(BaseModel):
     estado: str  # 'completado', 'error', 'pendiente'
     cuv: Optional[str] = None
     error: Optional[str] = None
+    items_igualados_a_cero: Optional[int] = None
 
 
 class BatchStatusResponse(BaseModel):
@@ -363,7 +364,8 @@ async def get_batch_status(batch_id: str) -> BatchStatusResponse:
             exitoso=r.exitoso,
             estado='completado' if r.exitoso else 'error',
             cuv=r.cuv,
-            error=r.error
+            error=r.error,
+            items_igualados_a_cero=r.items_igualados_a_cero if r.items_igualados_a_cero > 0 else None
         )
         for r in state.resultados
     ]

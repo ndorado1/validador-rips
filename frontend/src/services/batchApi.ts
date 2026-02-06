@@ -48,6 +48,7 @@ export interface BatchStatusResponse {
     estado: string
     cuv?: string
     error?: string
+    items_igualados_a_cero?: number
   }>
 }
 

@@ -1,4 +1,4 @@
-import { CheckCircle, AlertCircle, Download, ShieldCheck, UserCheck, UserX } from 'lucide-react'
+import { CheckCircle, AlertCircle, Download, ShieldCheck, UserCheck, UserX, AlertTriangle } from 'lucide-react'
 import { downloadFile, downloadJSON } from '../utils/api'
 import type { ProcessNCResponse } from '../utils/api'
 
@@ -28,6 +28,59 @@ export default function ResultsView({ result, onDownloadXML, onDownloadJSON, onV
           </span>
         </div>
       </div>
+
+      {/* Pre-processing values */}
+      {result.valores_pre_procesamiento && (
+        <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+          <h3 className="font-medium mb-2">Valores Originales (Antes de Procesar)</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-gray-600">Total NC (XML) original:</span>
+              <span className="ml-2 font-medium">${result.valores_pre_procesamiento.total_nc_xml.toFixed(2)}</span>
+            </div>
+            <div>
+              <span className="text-gray-600">Total RIPS original:</span>
+              <span className="ml-2 font-medium">${result.valores_pre_procesamiento.total_rips.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Zero-equalized items */}
+      {result.items_igualados_a_cero && result.items_igualados_a_cero.length > 0 && (
+        <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+          <h3 className="font-medium mb-2 flex items-center gap-2 text-orange-800">
+            <AlertTriangle size={16} />
+            Items igualados a 0 ({result.items_igualados_a_cero.length})
+          </h3>
+          <p className="text-sm text-orange-700 mb-3">
+            Los siguientes items tenían valores iguales en NC y RIPS antes de procesar,
+            por lo que sus valores fueron igualados a 0.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-orange-100">
+                <tr>
+                  <th className="px-3 py-2 text-left">Línea NC</th>
+                  <th className="px-3 py-2 text-left">Código RIPS</th>
+                  <th className="px-3 py-2 text-left">Tipo Servicio</th>
+                  <th className="px-3 py-2 text-right">Valor Original</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.items_igualados_a_cero.map((item, idx) => (
+                  <tr key={idx} className="border-b border-orange-100">
+                    <td className="px-3 py-2">{item.linea_nc}</td>
+                    <td className="px-3 py-2">{item.codigo_rips}</td>
+                    <td className="px-3 py-2">{item.tipo_servicio}</td>
+                    <td className="px-3 py-2 text-right">${item.valor_original.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Validación */}
       {result.success && (

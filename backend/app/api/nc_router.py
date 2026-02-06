@@ -13,7 +13,10 @@ from app.models import (
     ValidacionResult,
     MatchingDetail,
     LineaNC,
-    ServicioRIPS
+    ServicioRIPS,
+    ItemIgualadoCero,
+    ValoresPreProcesamiento,
+    PreviewValuesResponse,
 )
 
 router = APIRouter()
@@ -88,6 +91,21 @@ async def procesar_nc(
         matcher = LLMMatcher()
         matching_result = await matcher.match_services(lineas_nc, servicios_rips)
 
+        # Calculate pre-processing totals
+        total_nc_original = _extract_total_nc_original(nc_content)
+        total_rips_original = _calculate_total_rips_original(rips_data)
+        valores_pre = ValoresPreProcesamiento(
+            total_nc_xml=total_nc_original,
+            total_rips=total_rips_original
+        )
+
+        # Detect equal values (item by item)
+        items_igualados = _detect_equal_values(
+            matching_result.matches, lineas_nc, servicios_rips
+        )
+        codigos_igualados = {item.codigo_rips for item in items_igualados}
+        lineas_igualadas = [item.linea_nc for item in items_igualados]
+
         # Extraer número de nota
         num_nota = _extract_nc_number(nc_content)
 
@@ -102,10 +120,17 @@ async def procesar_nc(
             for m in matching_result.matches
         ]
 
-        nc_rips = RIPSProcessor.generate_nc_rips(rips_data, num_nota, matches_for_rips, es_caso_colesterol)
+        nc_rips = RIPSProcessor.generate_nc_rips(
+            rips_data, num_nota, matches_for_rips, es_caso_colesterol,
+            codigos_igualados_a_cero=codigos_igualados if codigos_igualados else None
+        )
 
         # Insertar secciones en NC
         nc_completo = XMLProcessor.insert_sections(nc_content, interop, period)
+
+        # Apply per-line zero-equalization to XML
+        if lineas_igualadas:
+            nc_completo = XMLProcessor.aplicar_valores_cero_por_linea(nc_completo, lineas_igualadas)
 
         # Aplicar caso especial de colesterol si está activo
         if es_caso_colesterol:
@@ -155,7 +180,9 @@ async def procesar_nc(
             matching_details=matching_details,
             warnings=matching_result.warnings + warnings,
             errors=errors,
-            numero_nota_credito=num_nota
+            numero_nota_credito=num_nota,
+            valores_pre_procesamiento=valores_pre,
+            items_igualados_a_cero=items_igualados
         )
 
     except Exception as e:
@@ -247,3 +274,81 @@ def _extract_total_nc(nc_xml: str) -> float:
     # Fallback: sumar líneas
     lines = XMLProcessor.extract_nc_lines(nc_xml)
     return sum(l.valor for l in lines)
+
+
+def _extract_total_nc_original(nc_content: str) -> float:
+    """Extract total from original NC XML (before any modifications)."""
+    embedded = XMLProcessor.get_embedded_document(nc_content)
+    match = re.search(r'<cbc:PayableAmount[^>]*>([^<]+)</cbc:PayableAmount>', embedded)
+    if match:
+        return float(match.group(1))
+    lines = XMLProcessor.extract_nc_lines(nc_content)
+    return sum(l.valor for l in lines)
+
+
+def _calculate_total_rips_original(rips_data) -> float:
+    """Calculate total vrServicio from original RIPS."""
+    return RIPSProcessor.calculate_total(rips_data)
+
+
+def _detect_equal_values(
+    matching_result_matches,
+    lineas_nc: List[LineaNC],
+    servicios_rips: List[ServicioRIPS]
+) -> List[ItemIgualadoCero]:
+    """Detect items where NC XML and RIPS values are equal before processing."""
+    items_igualados = []
+
+    for m in matching_result_matches:
+        linea = next((l for l in lineas_nc if l.id == m.linea_nc), None)
+        if not linea:
+            continue
+
+        valor_nc = linea.valor
+
+        servicio = next(
+            (s for s in servicios_rips
+             if s.codigo == m.codigo_rips and s.tipo == m.tipo_servicio),
+            None
+        )
+        if not servicio:
+            continue
+
+        valor_rips = servicio.valor_unitario
+
+        if abs(valor_nc - valor_rips) < 0.01:
+            items_igualados.append(ItemIgualadoCero(
+                linea_nc=m.linea_nc,
+                codigo_rips=m.codigo_rips,
+                tipo_servicio=m.tipo_servicio,
+                valor_original=valor_nc
+            ))
+
+    return items_igualados
+
+
+@router.post("/preview-values", response_model=PreviewValuesResponse)
+async def preview_values(
+    nc_xml: UploadFile = File(...),
+    factura_rips: UploadFile = File(...)
+):
+    """Preview original values from NC XML and RIPS before processing."""
+    try:
+        nc_content = (await nc_xml.read()).decode('utf-8')
+        rips_content = (await factura_rips.read()).decode('utf-8')
+
+        total_nc = _extract_total_nc_original(nc_content)
+
+        rips_data = RIPSProcessor.parse_rips(rips_content)
+        total_rips = RIPSProcessor.calculate_total(rips_data)
+
+        nc_cdata = XMLProcessor.extract_cdata(nc_content) or nc_content
+
+        return PreviewValuesResponse(
+            valores_nc_xml=total_nc,
+            valores_rips=total_rips,
+            nc_xml_cdata=nc_cdata,
+            rips_json=rips_data
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

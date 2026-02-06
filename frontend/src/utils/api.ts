@@ -2,6 +2,13 @@ import axios from 'axios'
 
 const API_URL = '/api/nc'
 
+export interface ItemIgualadoCero {
+  linea_nc: number
+  codigo_rips: string
+  tipo_servicio: string
+  valor_original: number
+}
+
 export interface ProcessNCResponse {
   success: boolean
   nc_xml_completo: string
@@ -24,6 +31,18 @@ export interface ProcessNCResponse {
   warnings: string[]
   errors: string[]
   numero_nota_credito?: string
+  valores_pre_procesamiento?: {
+    total_nc_xml: number
+    total_rips: number
+  }
+  items_igualados_a_cero: ItemIgualadoCero[]
+}
+
+export interface PreviewValuesResponse {
+  valores_nc_xml: number
+  valores_rips: number
+  nc_xml_cdata: string
+  rips_json: Record<string, unknown>
 }
 
 export async function procesarNC(
@@ -39,6 +58,20 @@ export async function procesarNC(
   formData.append('es_caso_colesterol', esCasoColesterol.toString())
 
   const response = await axios.post(`${API_URL}/procesar`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+  return response.data
+}
+
+export async function previewValues(
+  ncXml: File,
+  facturaRips: File
+): Promise<PreviewValuesResponse> {
+  const formData = new FormData()
+  formData.append('nc_xml', ncXml)
+  formData.append('factura_rips', facturaRips)
+
+  const response = await axios.post(`${API_URL}/preview-values`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
   return response.data

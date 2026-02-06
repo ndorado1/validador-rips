@@ -46,6 +46,7 @@ class BatchResult:
     error: Optional[str] = None
     es_caso_especial: bool = False
     raw_response: Optional[Dict] = None
+    items_igualados_a_cero: int = 0
 
 
 @dataclass
@@ -297,6 +298,25 @@ class BatchProcessor:
             matcher = LLMMatcher()
             matching_result = await matcher.match_services(lineas_nc, servicios_rips)
 
+            # Detect equal values for non-LDL folders
+            codigos_igualados = None
+            lineas_igualadas = []
+            items_igualados_count = 0
+            if not es_caso_especial:
+                for m in matching_result.matches:
+                    linea = next((l for l in lineas_nc if l.id == m.linea_nc), None)
+                    servicio = next(
+                        (s for s in servicios_rips
+                         if s.codigo == m.codigo_rips and s.tipo == m.tipo_servicio),
+                        None
+                    )
+                    if linea and servicio and abs(linea.valor - servicio.valor_unitario) < 0.01:
+                        if codigos_igualados is None:
+                            codigos_igualados = set()
+                        codigos_igualados.add(m.codigo_rips)
+                        lineas_igualadas.append(m.linea_nc)
+                        items_igualados_count += 1
+
             # Generate RIPS for NC
             matches_for_rips = [
                 {
@@ -312,11 +332,16 @@ class BatchProcessor:
                 rips_data,
                 numero_nc,
                 matches_for_rips,
-                es_caso_especial
+                es_caso_especial,
+                codigos_igualados_a_cero=codigos_igualados
             )
 
             # Insert sections into NC
             nc_completo = XMLProcessor.insert_sections(nc_content, interop, period)
+
+            # Apply per-line zero-equalization for non-LDL folders
+            if lineas_igualadas:
+                nc_completo = XMLProcessor.aplicar_valores_cero_por_linea(nc_completo, lineas_igualadas)
 
             # Apply special case if needed
             if es_caso_especial:
@@ -346,7 +371,8 @@ class BatchProcessor:
                             exitoso=True,
                             cuv=response.codigo_unico_validacion,
                             es_caso_especial=es_caso_especial,
-                            raw_response=response.raw_response
+                            raw_response=response.raw_response,
+                            items_igualados_a_cero=items_igualados_count
                         )
                     else:
                         # Check if it's a token expiration error (401)
@@ -608,6 +634,8 @@ class BatchProcessor:
             lines.append(f"[{status}] {resultado.carpeta} - NC: {resultado.numero_nc}")
             if resultado.exitoso and resultado.cuv:
                 lines.append(f"         CUV: {resultado.cuv}")
+                if resultado.items_igualados_a_cero > 0:
+                    lines.append(f"         Items igualados a 0: {resultado.items_igualados_a_cero}")
             elif resultado.error:
                 lines.append(f"         Error: {resultado.error}")
 

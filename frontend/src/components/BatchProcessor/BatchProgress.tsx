@@ -239,7 +239,7 @@ export default function BatchProgress({ folders, batchId: initialBatchId }: Batc
 
       {/* Estadísticas en cards */}
       {status && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-green-600">{status.exitosos}</div>
             <div className="text-sm text-green-700">Éxitos</div>
@@ -251,6 +251,12 @@ export default function BatchProgress({ folders, batchId: initialBatchId }: Batc
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-blue-600">{ldlCount}</div>
             <div className="text-sm text-blue-700">LDL</div>
+          </div>
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
+            <div className="text-2xl font-bold text-orange-600">
+              {status.detalles.reduce((sum, d) => sum + (d.items_igualados_a_cero || 0), 0)}
+            </div>
+            <div className="text-sm text-orange-700">Items a 0</div>
           </div>
         </div>
       )}
@@ -287,6 +293,11 @@ export default function BatchProgress({ folders, batchId: initialBatchId }: Batc
                     {folder.es_caso_especial && (
                       <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
                         LDL
+                      </span>
+                    )}
+                    {detail?.items_igualados_a_cero && detail.items_igualados_a_cero > 0 && (
+                      <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded-full">
+                        {detail.items_igualados_a_cero} a 0
                       </span>
                     )}
                   </div>
