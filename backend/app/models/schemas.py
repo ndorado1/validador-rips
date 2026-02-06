@@ -58,6 +58,18 @@ class MatchingDetail(BaseModel):
     confianza: Confianza
 
 
+class ItemIgualadoCero(BaseModel):
+    linea_nc: int
+    codigo_rips: str
+    tipo_servicio: str
+    valor_original: float
+
+
+class ValoresPreProcesamiento(BaseModel):
+    total_nc_xml: float
+    total_rips: float
+
+
 class ProcesarNCResponse(BaseModel):
     success: bool
     nc_xml_completo: str
@@ -67,12 +79,21 @@ class ProcesarNCResponse(BaseModel):
     warnings: List[str]
     errors: List[str]
     numero_nota_credito: Optional[str] = None  # Número de NC extraído del XML
+    valores_pre_procesamiento: Optional[ValoresPreProcesamiento] = None
+    items_igualados_a_cero: List[ItemIgualadoCero] = []
 
 
 class PreviewMatchingResponse(BaseModel):
     lineas_nc: List[LineaNC]
     servicios_rips: List[ServicioRIPS]
     matching_sugerido: List[Dict[str, Any]]
+
+
+class PreviewValuesResponse(BaseModel):
+    valores_nc_xml: float
+    valores_rips: float
+    nc_xml_cdata: str
+    rips_json: Dict[str, Any]
 
 
 # Schemas para validación CUV con Ministerio de Salud
