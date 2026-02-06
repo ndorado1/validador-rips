@@ -71,7 +71,8 @@ class RIPSProcessor:
         rips_data: Dict[str, Any],
         num_nota: str,
         matches: List[Dict[str, Any]],
-        es_caso_colesterol: bool = False
+        es_caso_colesterol: bool = False,
+        codigos_igualados_a_cero: Optional[set] = None
     ) -> Dict[str, Any]:
         """Genera el RIPS filtrado para la Nota Crédito."""
         # Copiar estructura base
@@ -116,23 +117,27 @@ class RIPSProcessor:
                 if tipo == 'medicamentos':
                     nc_usuario['servicios']['medicamentos'] = RIPSProcessor._process_medicamentos(
                         servicios_originales.get('medicamentos', []),
-                        tipo_matches
+                        tipo_matches,
+                        codigos_igualados_a_cero
                     )
                 elif tipo == 'otrosServicios':
                     nc_usuario['servicios']['otrosServicios'] = RIPSProcessor._process_otros_servicios(
                         servicios_originales.get('otrosServicios', []),
-                        tipo_matches
+                        tipo_matches,
+                        codigos_igualados_a_cero
                     )
                 elif tipo == 'procedimientos':
                     nc_usuario['servicios']['procedimientos'] = RIPSProcessor._process_procedimientos(
                         servicios_originales.get('procedimientos', []),
                         tipo_matches,
-                        es_caso_colesterol
+                        es_caso_colesterol,
+                        codigos_igualados_a_cero
                     )
                 elif tipo == 'consultas':
                     nc_usuario['servicios']['consultas'] = RIPSProcessor._process_consultas(
                         servicios_originales.get('consultas', []),
-                        tipo_matches
+                        tipo_matches,
+                        codigos_igualados_a_cero
                     )
 
             # Solo agregar usuario si tiene servicios
@@ -142,47 +147,51 @@ class RIPSProcessor:
         return nc_rips
 
     @staticmethod
-    def _process_medicamentos(meds_originales: List[Dict], matches: List[Dict]) -> List[Dict]:
+    def _process_medicamentos(meds_originales: List[Dict], matches: List[Dict], codigos_igualados_a_cero: Optional[set] = None) -> List[Dict]:
         """Procesa medicamentos para la NC."""
         result = []
         for match in matches:
             codigo = match['codigo_rips']
             for med in meds_originales:
                 if med.get('codTecnologiaSalud') == codigo:
-                    # Crear copia completa con todos los campos originales
                     med_nc = dict(med)
-                    # Para NC, la cantidad es 1 y se recalcula el valor unitario
                     cantidad = 1
                     med_nc['cantidadMedicamento'] = cantidad
-                    med_nc['vrServicio'] = match['valor_nc']
-                    med_nc['vrUnitMedicamento'] = match['valor_nc'] / cantidad if cantidad > 0 else 0
+                    if codigos_igualados_a_cero and codigo in codigos_igualados_a_cero:
+                        med_nc['vrServicio'] = 0
+                        med_nc['vrUnitMedicamento'] = 0
+                    else:
+                        med_nc['vrServicio'] = match['valor_nc']
+                        med_nc['vrUnitMedicamento'] = match['valor_nc'] / cantidad if cantidad > 0 else 0
                     med_nc['consecutivo'] = len(result) + 1
                     result.append(med_nc)
                     break
         return result
 
     @staticmethod
-    def _process_otros_servicios(os_originales: List[Dict], matches: List[Dict]) -> List[Dict]:
+    def _process_otros_servicios(os_originales: List[Dict], matches: List[Dict], codigos_igualados_a_cero: Optional[set] = None) -> List[Dict]:
         """Procesa otros servicios para la NC."""
         result = []
         for match in matches:
             codigo = match['codigo_rips']
             for os in os_originales:
                 if os.get('codTecnologiaSalud') == codigo:
-                    # Crear copia completa con todos los campos originales
                     os_nc = dict(os)
-                    # Para NC, la cantidad es 1 y se recalcula el valor unitario
                     cantidad = 1
                     os_nc['cantidadOS'] = cantidad
-                    os_nc['vrServicio'] = match['valor_nc']
-                    os_nc['vrUnitOS'] = match['valor_nc'] / cantidad if cantidad > 0 else 0
+                    if codigos_igualados_a_cero and codigo in codigos_igualados_a_cero:
+                        os_nc['vrServicio'] = 0
+                        os_nc['vrUnitOS'] = 0
+                    else:
+                        os_nc['vrServicio'] = match['valor_nc']
+                        os_nc['vrUnitOS'] = match['valor_nc'] / cantidad if cantidad > 0 else 0
                     os_nc['consecutivo'] = len(result) + 1
                     result.append(os_nc)
                     break
         return result
 
     @staticmethod
-    def _process_procedimientos(proc_originales: List[Dict], matches: List[Dict], es_caso_colesterol: bool = False) -> List[Dict]:
+    def _process_procedimientos(proc_originales: List[Dict], matches: List[Dict], es_caso_colesterol: bool = False, codigos_igualados_a_cero: Optional[set] = None) -> List[Dict]:
         """Procesa procedimientos para la NC."""
         result = []
         for match in matches:
@@ -190,11 +199,10 @@ class RIPSProcessor:
             for proc in proc_originales:
                 if proc.get('codProcedimiento') == codigo:
                     proc_nc = {k: v for k, v in proc.items()}
-                    # Procedimientos en RIPS no tienen campo cantidad
-                    # Solo actualizamos el valor del servicio
                     valor = match['valor_nc']
-                    # Caso especial: si es caso de colesterol y el código es 903816, poner valor en 0
                     if es_caso_colesterol and codigo == '903816':
+                        valor = 0
+                    if codigos_igualados_a_cero and codigo in codigos_igualados_a_cero:
                         valor = 0
                     proc_nc['vrServicio'] = valor
                     proc_nc['consecutivo'] = len(result) + 1
@@ -203,7 +211,7 @@ class RIPSProcessor:
         return result
 
     @staticmethod
-    def _process_consultas(cons_originales: List[Dict], matches: List[Dict]) -> List[Dict]:
+    def _process_consultas(cons_originales: List[Dict], matches: List[Dict], codigos_igualados_a_cero: Optional[set] = None) -> List[Dict]:
         """Procesa consultas para la NC."""
         result = []
         for match in matches:
@@ -211,7 +219,10 @@ class RIPSProcessor:
             for cons in cons_originales:
                 if cons.get('codConsulta') == codigo:
                     cons_nc = {k: v for k, v in cons.items()}
-                    cons_nc['vrServicio'] = match['valor_nc']
+                    if codigos_igualados_a_cero and codigo in codigos_igualados_a_cero:
+                        cons_nc['vrServicio'] = 0
+                    else:
+                        cons_nc['vrServicio'] = match['valor_nc']
                     cons_nc['consecutivo'] = len(result) + 1
                     result.append(cons_nc)
                     break

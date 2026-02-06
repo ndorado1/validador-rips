@@ -200,3 +200,81 @@ class XMLProcessor:
         result = re.sub(r'(<cbc:BaseQuantity[^>]*>)[\d.]+(</cbc:BaseQuantity>)', r'\g<1>0.00\g<2>', result)
 
         return result
+
+    @staticmethod
+    def aplicar_valores_cero_por_linea(nc_xml: str, lineas_ids: List[int]) -> str:
+        """Pone a 0 los valores monetarios de lineas especificas de la NC y recalcula totales."""
+        if not lineas_ids:
+            return nc_xml
+
+        result = nc_xml
+
+        # Process each CreditNoteLine
+        for line_id in lineas_ids:
+            # Find the specific CreditNoteLine by ID
+            pattern = rf'(<cac:CreditNoteLine[^>]*>.*?<cbc:ID[^>]*>{line_id}</cbc:ID>.*?</cac:CreditNoteLine>)'
+            match = re.search(pattern, result, re.DOTALL)
+            if not match:
+                continue
+
+            original_line = match.group(1)
+            modified_line = original_line
+
+            # Zero out LineExtensionAmount in this line
+            modified_line = re.sub(
+                r'(<cbc:LineExtensionAmount[^>]*>)[\d.]+(</cbc:LineExtensionAmount>)',
+                r'\g<1>0.00\g<2>',
+                modified_line
+            )
+            # Zero out PriceAmount in this line
+            modified_line = re.sub(
+                r'(<cbc:PriceAmount[^>]*>)[\d.]+(</cbc:PriceAmount>)',
+                r'\g<1>0.00\g<2>',
+                modified_line
+            )
+            # Zero out CreditedQuantity in this line
+            modified_line = re.sub(
+                r'(<cbc:CreditedQuantity[^>]*>)[\d.]+(</cbc:CreditedQuantity>)',
+                r'\g<1>0.00\g<2>',
+                modified_line
+            )
+            # Zero out BaseQuantity in this line
+            modified_line = re.sub(
+                r'(<cbc:BaseQuantity[^>]*>)[\d.]+(</cbc:BaseQuantity>)',
+                r'\g<1>0.00\g<2>',
+                modified_line
+            )
+
+            result = result.replace(original_line, modified_line)
+
+        # Recalculate LegalMonetaryTotal by summing remaining LineExtensionAmounts
+        total = 0.0
+        for line_match in re.finditer(
+            r'<cac:CreditNoteLine[^>]*>.*?<cbc:LineExtensionAmount[^>]*>([\d.]+)</cbc:LineExtensionAmount>.*?</cac:CreditNoteLine>',
+            result, re.DOTALL
+        ):
+            total += float(line_match.group(1))
+
+        # Update LegalMonetaryTotal fields
+        total_str = f"{total:.2f}"
+
+        # Update LineExtensionAmount in LegalMonetaryTotal
+        result = re.sub(
+            r'(<cac:LegalMonetaryTotal>.*?<cbc:LineExtensionAmount[^>]*>)[\d.]+(</cbc:LineExtensionAmount>)',
+            rf'\g<1>{total_str}\g<2>',
+            result, count=1, flags=re.DOTALL
+        )
+        # Update TaxInclusiveAmount in LegalMonetaryTotal
+        result = re.sub(
+            r'(<cac:LegalMonetaryTotal>.*?<cbc:TaxInclusiveAmount[^>]*>)[\d.]+(</cbc:TaxInclusiveAmount>)',
+            rf'\g<1>{total_str}\g<2>',
+            result, count=1, flags=re.DOTALL
+        )
+        # Update PayableAmount in LegalMonetaryTotal
+        result = re.sub(
+            r'(<cac:LegalMonetaryTotal>.*?<cbc:PayableAmount[^>]*>)[\d.]+(</cbc:PayableAmount>)',
+            rf'\g<1>{total_str}\g<2>',
+            result, count=1, flags=re.DOTALL
+        )
+
+        return result
