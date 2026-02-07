@@ -12,6 +12,7 @@ import io
 import json
 import logging
 import os
+import re
 import zipfile
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -98,6 +99,32 @@ class BatchProcessor:
         self._states: Dict[str, BatchState] = {}
         self.on_token_expired: Optional[Callable[[], str]] = None
         self.on_progress: Optional[Callable[[BatchState], None]] = None
+
+    def _extraer_prefijo_nc(self, filename: str) -> str:
+        """Extrae el prefijo NC del nombre del archivo (ej: NCS, NCD).
+
+        Busca el patrón: NC seguido de letras mayúsculas antes del número.
+
+        Args:
+            filename: Nombre del archivo XML (ej: "NC_HMD_NCS000123.xml")
+
+        Returns:
+            Prefijo encontrado (ej: "NCS") o string vacío si no se encuentra
+
+        Examples:
+            >>> self._extraer_prefijo_nc("NC_HMD_NCS000123.xml")
+            'NCS'
+            >>> self._extraer_prefijo_nc("nc_test_ncd456.xml")
+            'NCD'
+            >>> self._extraer_prefijo_nc("NC000123.xml")
+            ''
+        """
+        match = re.search(r'([A-Z]+)(?=\d)', filename.upper())
+        if match:
+            prefix = match.group(1)
+            # Return empty if it's just 'NC' with no additional letters
+            return prefix if prefix != 'NC' else ''
+        return ''
 
     def create_batch(self, folders: List[FolderInfo], batch_id: Optional[str] = None) -> str:
         """Create a new batch job.
@@ -525,11 +552,11 @@ class BatchProcessor:
 
                 filename_upper = file_path.name.upper()
 
-                # Detect Factura XML (contains PMD + .xml)
-                if file_path.suffix.lower() == ".xml" and "PMD" in filename_upper:
+                # Detect Factura XML (contains PMD, HMD, or MDS + .xml)
+                if file_path.suffix.lower() == ".xml" and ("PMD" in filename_upper or "HMD" in filename_upper or "MDS" in filename_upper):
                     files["factura"] = file_path.read_text(encoding='utf-8')
 
-                # Detect Nota Credito XML (contains NC + .xml)
+                # Detect Nota Credito XML (contains NC, NCD, or NCS + .xml)
                 elif file_path.suffix.lower() == ".xml" and "NC" in filename_upper:
                     files["nota_credito"] = file_path.read_text(encoding='utf-8')
 
