@@ -403,10 +403,8 @@ class BatchProcessor:
                     batch_id_sanitized = self._sanitize_path_component(batch_id)
 
                     # Construct RIPS filename
-                    if prefijo_nc_sanitized and prefijo_nc_sanitized != "UNKNOWN":
-                        rips_filename = f"RIPS_{nit}_{prefijo_nc_sanitized}{numero_nc_sanitized}.json"
-                    else:
-                        rips_filename = f"RIPS_{nit}_{numero_nc_sanitized}.json"
+                    # numero_nc already includes prefix (e.g., "NCS2766" from ParentDocumentID)
+                    rips_filename = f"RIPS_{nit}_{numero_nc_sanitized}.json"
 
                     # Create directory and save file (use sanitized batch_id)
                     rips_dir = Path(__file__).parent.parent.parent / "temp" / "batch_rips" / batch_id_sanitized
