@@ -11,7 +11,8 @@ import {
   AlertCircle,
   CheckSquare,
   XSquare,
-  Clock
+  Clock,
+  FileJson
 } from 'lucide-react'
 import SisproLoginModal from '../SisproLoginModal'
 import {
@@ -35,6 +36,7 @@ export default function BatchProgress({ folders, batchId: initialBatchId }: Batc
   const [showLogin, setShowLogin] = useState(false)
   const [token, setToken] = useState<string | null>(null)
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
+  const [downloadingRips, setDownloadingRips] = useState(false)
 
   // Calcular estadísticas
   const ldlCount = folders.filter(f => f.es_caso_especial).length
@@ -52,6 +54,37 @@ export default function BatchProgress({ folders, batchId: initialBatchId }: Batc
       newExpanded.add(nombre)
     }
     setExpandedFolders(newExpanded)
+  }
+
+  // Download RIPS ZIP
+  const handleDownloadRips = async () => {
+    if (!batchId) return
+
+    setDownloadingRips(true)
+    try {
+      const response = await fetch(`/api/batch/${batchId}/download-rips`)
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || 'No se encontraron archivos RIPS')
+      }
+
+      // Download the file
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${batchId}_RIPS.zip`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error downloading RIPS:', error)
+      alert(`Error al descargar RIPS: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+    } finally {
+      setDownloadingRips(false)
+    }
   }
 
   // Iniciar procesamiento
@@ -186,14 +219,33 @@ export default function BatchProgress({ folders, batchId: initialBatchId }: Batc
 
     if (status?.estado === 'completado' && batchId) {
       return (
-        <a
-          href={downloadBatchResults(batchId)}
-          download
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-        >
-          <Download size={18} />
-          Descargar Resultados
-        </a>
+        <div className="flex gap-3">
+          <a
+            href={downloadBatchResults(batchId)}
+            download
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Download size={18} />
+            Descargar Resultados
+          </a>
+          <button
+            onClick={handleDownloadRips}
+            disabled={downloadingRips}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {downloadingRips ? (
+              <>
+                <Loader2 className="animate-spin" size={18} />
+                Descargando RIPS...
+              </>
+            ) : (
+              <>
+                <FileJson size={18} />
+                Descargar RIPS
+              </>
+            )}
+          </button>
+        </div>
       )
     }
 
