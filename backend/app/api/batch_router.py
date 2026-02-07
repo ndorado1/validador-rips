@@ -434,6 +434,77 @@ async def download_results(batch_id: str) -> FileResponse:
         raise HTTPException(status_code=500, detail=f"Error generating ZIP: {str(e)}")
 
 
+@router.get("/batch/{batch_id}/download-rips")
+async def download_batch_rips(batch_id: str):
+    """Genera y descarga un ZIP con todos los RIPS de NC del batch.
+
+    Después de generar el ZIP, elimina automáticamente la carpeta temporal
+    para liberar espacio.
+
+    Args:
+        batch_id: ID único del batch
+
+    Returns:
+        StreamingResponse con el archivo ZIP
+
+    Raises:
+        HTTPException 404: Si no se encuentran archivos RIPS para el batch
+    """
+    from fastapi.responses import StreamingResponse
+    import io
+
+    # 1. Verificar que el directorio existe
+    rips_dir = Path(f"backend/temp/batch_rips/{batch_id}")
+    if not rips_dir.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"No se encontraron archivos RIPS para el batch {batch_id}"
+        )
+
+    # Check if there are any RIPS files
+    rips_files = list(rips_dir.glob("RIPS_*.json"))
+    if not rips_files:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No hay archivos RIPS en el batch {batch_id}"
+        )
+
+    try:
+        # 2. Crear ZIP en memoria
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for rips_file in rips_files:
+                zf.write(rips_file, rips_file.name)
+
+        zip_buffer.seek(0)
+
+        # 3. Eliminar carpeta después de crear el ZIP
+        try:
+            shutil.rmtree(rips_dir)
+            logger.info(f"Cleaned up RIPS directory for batch {batch_id}")
+        except Exception as e:
+            logger.warning(f"Failed to cleanup RIPS directory for {batch_id}: {e}")
+            # No fallar la descarga si la limpieza falla
+
+        # 4. Retornar como descarga
+        return StreamingResponse(
+            zip_buffer,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f"attachment; filename={batch_id}_RIPS.zip"
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating RIPS ZIP for batch {batch_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating RIPS ZIP: {str(e)}"
+        )
+
+
 # ============= WebSocket Endpoint =============
 
 @router.websocket("/ws/{batch_id}")
