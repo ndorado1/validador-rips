@@ -434,7 +434,7 @@ async def download_results(batch_id: str) -> FileResponse:
         raise HTTPException(status_code=500, detail=f"Error generating ZIP: {str(e)}")
 
 
-@router.get("/batch/{batch_id}/download-rips")
+@router.get("/download-rips/{batch_id}")
 async def download_batch_rips(batch_id: str):
     """Genera y descarga un ZIP con todos los RIPS de NC del batch.
 
@@ -454,14 +454,9 @@ async def download_batch_rips(batch_id: str):
     import io
     import re
 
-    # SECURITY: Validate batch_id exists and sanitize to prevent path traversal
-    if batch_id not in _batch_processors:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Batch not found: {batch_id}"
-        )
-
-    # Sanitize batch_id to prevent path traversal attacks
+    # SECURITY: Sanitize batch_id to prevent path traversal attacks
+    # Note: We don't validate against _batch_processors because RIPS files
+    # persist on disk and should be downloadable even after server restarts.
     sanitized_batch_id = re.sub(r'[^\w\-]', '_', str(batch_id))
 
     # Construct path with sanitized ID using absolute path

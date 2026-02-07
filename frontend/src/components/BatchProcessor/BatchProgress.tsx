@@ -62,7 +62,7 @@ export default function BatchProgress({ folders, batchId: initialBatchId }: Batc
 
     setDownloadingRips(true)
     try {
-      const response = await fetch(`/api/batch/${batchId}/download-rips`)
+      const response = await fetch(`/api/batch/download-rips/${batchId}`)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
