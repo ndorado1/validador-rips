@@ -452,17 +452,40 @@ async def download_batch_rips(batch_id: str):
     """
     from fastapi.responses import StreamingResponse
     import io
+    import re
 
-    # 1. Verificar que el directorio existe
-    rips_dir = Path(f"backend/temp/batch_rips/{batch_id}")
-    if not rips_dir.exists():
+    # SECURITY: Validate batch_id exists and sanitize to prevent path traversal
+    if batch_id not in _batch_processors:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Batch not found: {batch_id}"
+        )
+
+    # Sanitize batch_id to prevent path traversal attacks
+    sanitized_batch_id = re.sub(r'[^\w\-]', '_', str(batch_id))
+
+    # Construct path with sanitized ID using absolute path
+    base_dir = Path(__file__).parent.parent.parent  # Go up to project root
+    rips_dir = base_dir / "backend" / "temp" / "batch_rips" / sanitized_batch_id
+
+    # Verify the resolved path is still within the expected directory (defense in depth)
+    try:
+        rips_dir_resolved = rips_dir.resolve()
+        expected_base = (base_dir / "backend" / "temp" / "batch_rips").resolve()
+        if not str(rips_dir_resolved).startswith(str(expected_base)):
+            raise HTTPException(status_code=403, detail="Invalid batch ID")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid batch ID format")
+
+    # Check directory exists (use resolved path)
+    if not rips_dir_resolved.exists():
         raise HTTPException(
             status_code=404,
             detail=f"No se encontraron archivos RIPS para el batch {batch_id}"
         )
 
-    # Check if there are any RIPS files
-    rips_files = list(rips_dir.glob("RIPS_*.json"))
+    # Check if there are any RIPS files (use resolved path)
+    rips_files = list(rips_dir_resolved.glob("RIPS_*.json"))
     if not rips_files:
         raise HTTPException(
             status_code=404,
@@ -478,9 +501,9 @@ async def download_batch_rips(batch_id: str):
 
         zip_buffer.seek(0)
 
-        # 3. Eliminar carpeta después de crear el ZIP
+        # 3. Eliminar carpeta después de crear el ZIP (use resolved path)
         try:
-            shutil.rmtree(rips_dir)
+            shutil.rmtree(rips_dir_resolved)
             logger.info(f"Cleaned up RIPS directory for batch {batch_id}")
         except Exception as e:
             logger.warning(f"Failed to cleanup RIPS directory for {batch_id}: {e}")
