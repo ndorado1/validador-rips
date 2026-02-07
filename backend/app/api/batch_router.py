@@ -465,13 +465,15 @@ async def download_batch_rips(batch_id: str):
     sanitized_batch_id = re.sub(r'[^\w\-]', '_', str(batch_id))
 
     # Construct path with sanitized ID using absolute path
-    base_dir = Path(__file__).parent.parent.parent  # Go up to project root
-    rips_dir = base_dir / "backend" / "temp" / "batch_rips" / sanitized_batch_id
+    # From batch_router.py: parent = api/, parent.parent = app/, parent.parent.parent = backend/
+    # We need one more parent to get to project root
+    project_root = Path(__file__).parent.parent.parent.parent
+    rips_dir = project_root / "backend" / "temp" / "batch_rips" / sanitized_batch_id
 
     # Verify the resolved path is still within the expected directory (defense in depth)
     try:
         rips_dir_resolved = rips_dir.resolve()
-        expected_base = (base_dir / "backend" / "temp" / "batch_rips").resolve()
+        expected_base = (project_root / "backend" / "temp" / "batch_rips").resolve()
         if not str(rips_dir_resolved).startswith(str(expected_base)):
             raise HTTPException(status_code=403, detail="Invalid batch ID")
     except ValueError:
