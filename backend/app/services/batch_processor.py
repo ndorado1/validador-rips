@@ -166,6 +166,30 @@ class BatchProcessor:
         """
         return self._states.get(batch_id)
 
+    def _sanitize_path_component(self, component: str) -> str:
+        """Sanitize a string to be safe for use in filesystem paths.
+
+        Removes or replaces unsafe characters that could be used for path traversal.
+
+        Args:
+            component: String to sanitize (e.g., NIT, NC number, batch ID)
+
+        Returns:
+            Sanitized string safe for filesystem use, or "UNKNOWN" if empty
+
+        Examples:
+            >>> self._sanitize_path_component("../etc/passwd")
+            '___etc_passwd'
+            >>> self._sanitize_path_component("NCS000123")
+            'NCS000123'
+            >>> self._sanitize_path_component("")
+            'UNKNOWN'
+        """
+        if not component or not str(component).strip():
+            return "UNKNOWN"
+        # Replace any non-alphanumeric chars (except underscore/hyphen) with underscore
+        return re.sub(r'[^\w\-]', '_', str(component))
+
     async def process_batch(
         self,
         batch_id: str,
@@ -196,7 +220,8 @@ class BatchProcessor:
                     result = await self.process_folder(
                         folder.path,
                         token,
-                        folder.es_caso_especial
+                        folder.es_caso_especial,
+                        batch_id=batch_id
                     )
 
                     state.resultados.append(result)
@@ -241,7 +266,8 @@ class BatchProcessor:
         self,
         folder_path: str,
         token: str,
-        es_caso_especial: bool = False
+        es_caso_especial: bool = False,
+        batch_id: Optional[str] = None
     ) -> BatchResult:
         """Process a single folder.
 
@@ -362,6 +388,38 @@ class BatchProcessor:
                 es_caso_especial,
                 codigos_igualados_a_cero=codigos_igualados
             )
+
+            # Save RIPS JSON to temporary directory (non-critical operation)
+            if batch_id:
+                try:
+                    # Extract NC prefix from filename
+                    nc_xml_filename = files.get("nota_credito_filename", "")
+                    prefijo_nc = self._extraer_prefijo_nc(nc_xml_filename)
+
+                    # Get NIT from RIPS data and sanitize all path components
+                    nit = self._sanitize_path_component(rips_data.get("numDocumentoIdObligado", "UNKNOWN"))
+                    prefijo_nc_sanitized = self._sanitize_path_component(prefijo_nc)
+                    numero_nc_sanitized = self._sanitize_path_component(numero_nc)
+                    batch_id_sanitized = self._sanitize_path_component(batch_id)
+
+                    # Construct RIPS filename
+                    if prefijo_nc_sanitized and prefijo_nc_sanitized != "UNKNOWN":
+                        rips_filename = f"RIPS_{nit}_{prefijo_nc_sanitized}{numero_nc_sanitized}.json"
+                    else:
+                        rips_filename = f"RIPS_{nit}_{numero_nc_sanitized}.json"
+
+                    # Create directory and save file (use sanitized batch_id)
+                    rips_dir = Path(__file__).parent.parent.parent / "temp" / "batch_rips" / batch_id_sanitized
+                    rips_dir.mkdir(parents=True, exist_ok=True)
+
+                    # Save RIPS JSON file
+                    rips_file_path = rips_dir / rips_filename
+                    with open(rips_file_path, 'w', encoding='utf-8') as f:
+                        json.dump(nc_rips, f, indent=2, ensure_ascii=False)
+
+                    logger.info(f"Saved RIPS file: {rips_filename}")
+                except (OSError, IOError, TypeError, ValueError) as e:
+                    logger.warning(f"Failed to save RIPS file for {folder_name}: {e}")
 
             # Insert sections into NC
             nc_completo = XMLProcessor.insert_sections(nc_content, interop, period)
