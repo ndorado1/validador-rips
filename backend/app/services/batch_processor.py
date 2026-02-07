@@ -532,12 +532,14 @@ class BatchProcessor:
             folder: Path to the folder
 
         Returns:
-            Dictionary with 'factura', 'nota_credito', 'rips' content,
-            or None if files cannot be read
+            Dictionary with 4 keys: 'factura', 'nota_credito', 'nota_credito_filename', 'rips'.
+            The first 3 contain file content, 'nota_credito_filename' contains the NC filename.
+            Returns None if required files cannot be read.
         """
         files = {
             "factura": None,
             "nota_credito": None,
+            "nota_credito_filename": None,
             "rips": None
         }
 
@@ -559,14 +561,16 @@ class BatchProcessor:
                 # Detect Nota Credito XML (contains NC, NCD, or NCS + .xml)
                 elif file_path.suffix.lower() == ".xml" and "NC" in filename_upper:
                     files["nota_credito"] = file_path.read_text(encoding='utf-8')
+                    files["nota_credito_filename"] = file_path.name  # NUEVO
 
                 # Detect RIPS JSON
                 elif file_path.suffix.lower() == ".json":
                     files["rips"] = file_path.read_text(encoding='utf-8')
 
-            # Check if all required files are present
-            if not all(files.values()):
-                missing = [k for k, v in files.items() if v is None]
+            # Check if all required files are present (excluding nota_credito_filename which is derived)
+            required_files = ["factura", "nota_credito", "rips"]
+            if not all(files[k] for k in required_files):
+                missing = [k for k in required_files if files[k] is None]
                 logger.error(f"Missing files in {folder}: {missing}")
                 return None
 
