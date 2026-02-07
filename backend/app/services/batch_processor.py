@@ -621,8 +621,8 @@ class BatchProcessor:
                     files["nota_credito"] = file_path.read_text(encoding='utf-8')
                     files["nota_credito_filename"] = file_path.name  # NUEVO
 
-                # Detect RIPS JSON
-                elif file_path.suffix.lower() == ".json":
+                # Detect RIPS JSON (must contain "RIPS" in filename, ignore CUV/other JSONs)
+                elif file_path.suffix.lower() == ".json" and "RIPS" in filename_upper:
                     files["rips"] = file_path.read_text(encoding='utf-8')
 
             # Check if all required files are present (excluding nota_credito_filename which is derived)
