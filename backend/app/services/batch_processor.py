@@ -48,6 +48,7 @@ class BatchResult:
     es_caso_especial: bool = False
     raw_response: Optional[Dict] = None
     items_igualados_a_cero: int = 0
+    rips_guardado: bool = False
 
 
 @dataclass
@@ -70,6 +71,7 @@ class BatchState:
     exitosos: int = 0
     errores: int = 0
     resultados: List[BatchResult] = field(default_factory=list)
+    rips_guardados: int = 0
     en_progreso: bool = False
     token_sispro: Optional[str] = None
 
@@ -232,6 +234,9 @@ class BatchProcessor:
                     else:
                         state.errores += 1
 
+                    if result.rips_guardado:
+                        state.rips_guardados += 1
+
                     # Delay entre carpetas para evitar rate limit de LLM
                     # Moonshot tiene límites de ~10-20 req/s, con 0.5s estamos seguros
                     if i < len(folders) - 1:  # No esperar después de la última
@@ -390,6 +395,7 @@ class BatchProcessor:
             )
 
             # Save RIPS JSON to temporary directory (non-critical operation)
+            rips_saved = False
             if batch_id:
                 try:
                     # Extract NC prefix from filename
@@ -415,6 +421,7 @@ class BatchProcessor:
                     with open(rips_file_path, 'w', encoding='utf-8') as f:
                         json.dump(nc_rips, f, indent=2, ensure_ascii=False)
 
+                    rips_saved = True
                     logger.info(f"Saved RIPS file: {rips_filename}")
                 except (OSError, IOError, TypeError, ValueError) as e:
                     logger.warning(f"Failed to save RIPS file for {folder_name}: {e}")
@@ -455,7 +462,8 @@ class BatchProcessor:
                             cuv=response.codigo_unico_validacion,
                             es_caso_especial=es_caso_especial,
                             raw_response=response.raw_response,
-                            items_igualados_a_cero=items_igualados_count
+                            items_igualados_a_cero=items_igualados_count,
+                            rips_guardado=rips_saved
                         )
                     else:
                         # Check if it's a token expiration error (401)
@@ -486,7 +494,8 @@ class BatchProcessor:
                             exitoso=False,
                             error=error_msg,
                             es_caso_especial=es_caso_especial,
-                            raw_response=response.raw_response
+                            raw_response=response.raw_response,
+                            rips_guardado=rips_saved
                         )
 
                 except Exception as e:
@@ -515,7 +524,8 @@ class BatchProcessor:
                 numero_nc=numero_nc,
                 exitoso=False,
                 error="Max retries exceeded",
-                es_caso_especial=es_caso_especial
+                es_caso_especial=es_caso_especial,
+                rips_guardado=rips_saved
             )
 
         except Exception as e:
@@ -560,13 +570,18 @@ class BatchProcessor:
             for resultado in state.resultados:
                 if resultado.exitoso and resultado.cuv:
                     filename = f"{exitosos_dir}/CUV_{resultado.numero_nc}.json"
-                    content = json.dumps({
-                        "carpeta": resultado.carpeta,
-                        "numero_nc": resultado.numero_nc,
-                        "cuv": resultado.cuv,
-                        "es_caso_especial": resultado.es_caso_especial,
-                        "raw_response": resultado.raw_response
-                    }, indent=2, ensure_ascii=False)
+                    # Cuando resultState es True, guardar DIRECTAMENTE la respuesta del ministerio
+                    # sin envolverla en otro objeto
+                    if resultado.raw_response:
+                        content = json.dumps(resultado.raw_response, indent=2, ensure_ascii=False)
+                    else:
+                        # Fallback si no hay raw_response (no debería ocurrir)
+                        content = json.dumps({
+                            "carpeta": resultado.carpeta,
+                            "numero_nc": resultado.numero_nc,
+                            "cuv": resultado.cuv,
+                            "es_caso_especial": resultado.es_caso_especial
+                        }, indent=2, ensure_ascii=False)
                     zf.writestr(filename, content)
 
             # Add errors CSV

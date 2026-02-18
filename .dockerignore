@@ -1,0 +1,30 @@
+# Git
+.git
+.gitignore
+
+# Frontend (se reconstruye en Docker)
+frontend/node_modules
+frontend/dist
+frontend/dist-ssr
+frontend/.vite
+
+# Backend
+backend/__pycache__
+backend/.pytest_cache
+backend/.coverage
+backend/htmlcov
+backend/.venv
+backend/venv
+backend/env
+backend/.env
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Docs y temp
+backend/temp
+*.md
+!backend/README.md

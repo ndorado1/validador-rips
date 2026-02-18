@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { X, Lock, User, Building } from 'lucide-react'
+import { X, Lock, User, Building, Loader2, Shield } from 'lucide-react'
+import axios from 'axios'
 import { loginSISPRO } from '../services/validationApi'
 import type { LoginCredentials } from '../services/validationApi'
 
@@ -7,9 +8,10 @@ interface SisproLoginModalProps {
   isOpen: boolean
   onClose: () => void
   onLoginSuccess: (token: string) => void
+  isMandatory?: boolean
 }
 
-export default function SisproLoginModal({ isOpen, onClose, onLoginSuccess }: SisproLoginModalProps) {
+export default function SisproLoginModal({ isOpen, onClose, onLoginSuccess, isMandatory = false }: SisproLoginModalProps) {
   const [credentials, setCredentials] = useState<LoginCredentials>({
     tipoDocumento: 'CC',
     numeroDocumento: '',
@@ -53,14 +55,29 @@ export default function SisproLoginModal({ isOpen, onClose, onLoginSuccess }: Si
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-800">Iniciar Sesión - SISPRO</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X size={24} />
-          </button>
+          <div className="flex items-center gap-3">
+            <Shield className="w-6 h-6 text-blue-600" />
+            <h2 className="text-xl font-semibold text-gray-800">Iniciar Sesión - SISPRO</h2>
+          </div>
+          {!isMandatory && (
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X size={24} />
+            </button>
+          )}
         </div>
+
+        {isMandatory && (
+          <div className="px-6 pt-4">
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-700">
+                <strong>Autenticación requerida:</strong> Debe iniciar sesión con sus credenciales de SISPRO para continuar.
+              </p>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
@@ -136,17 +153,19 @@ export default function SisproLoginModal({ isOpen, onClose, onLoginSuccess }: Si
           )}
 
           <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancelar
-            </button>
+            {!isMandatory && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+            )}
             <button
               type="submit"
               disabled={loading || !credentials.numeroDocumento || !credentials.nit || !credentials.clave}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${isMandatory ? 'w-full' : 'flex-1'}`}
             >
               {loading ? (
                 <>
@@ -173,7 +192,3 @@ export default function SisproLoginModal({ isOpen, onClose, onLoginSuccess }: Si
     </div>
   )
 }
-
-// Import axios for error checking
-import axios from 'axios'
-import { Loader2 } from 'lucide-react'

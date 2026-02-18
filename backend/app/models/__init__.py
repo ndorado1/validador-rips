@@ -16,6 +16,11 @@ from .schemas import (
     NCPayload,
     ValidationError,
     NCValidationResponse,
+    CapitaPeriodoPayload,
+    CapitaPeriodoResponse,
+    NCTotalPayload,
+    FevRipsPayload,
+    FevRipsResponse,
 )
 from .correccion_schemas import (
     PropuestaCorreccion,

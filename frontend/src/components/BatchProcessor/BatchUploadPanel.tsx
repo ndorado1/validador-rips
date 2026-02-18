@@ -11,16 +11,13 @@ export default function BatchUploadPanel({ onFoldersSelected }: BatchUploadPanel
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
 
   const handleButtonClick = () => {
     fileInputRef.current?.click()
   }
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
-    if (!files || files.length === 0) return
-
-    const file = files[0]
+  const processFile = async (file: File) => {
     if (!file.name.endsWith('.zip')) {
       setError('Por favor seleccione un archivo ZIP')
       return
@@ -44,6 +41,45 @@ export default function BatchUploadPanel({ onFoldersSelected }: BatchUploadPanel
     }
   }
 
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files || files.length === 0) return
+
+    const file = files[0]
+    await processFile(file)
+  }
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    if (loading) return
+
+    const files = e.dataTransfer.files
+    if (files && files.length > 0) {
+      const file = files[0]
+      await processFile(file)
+    }
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex items-center gap-3 mb-4">
@@ -53,7 +89,7 @@ export default function BatchUploadPanel({ onFoldersSelected }: BatchUploadPanel
 
       <p className="text-gray-600 mb-6">
         Comprima la carpeta padre (que contiene todas las subcarpetas con NC) en un archivo ZIP.
-        Cada subcarpeta debe contener los 3 archivos: Factura XML (PMD), Nota Crédito XML (NC) y RIPS JSON.
+        Cada subcarpeta debe contener los 3 archivos: Factura XML (PMD/HMD/MDS), Nota Crédito XML (NC) y RIPS JSON.
       </p>
 
       <input
@@ -63,6 +99,34 @@ export default function BatchUploadPanel({ onFoldersSelected }: BatchUploadPanel
         onChange={handleFileSelect}
         className="hidden"
       />
+
+      {/* Drop zone */}
+      <div
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        className={`
+          mb-4 border-2 border-dashed rounded-lg p-8 text-center transition-colors
+          ${isDragging
+            ? 'border-blue-500 bg-blue-50'
+            : 'border-gray-300 bg-gray-50 hover:border-gray-400'
+          }
+          ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+        `}
+        onClick={() => !loading && handleButtonClick()}
+      >
+        <FileArchive
+          className={`mx-auto mb-3 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`}
+          size={48}
+        />
+        <p className="text-gray-600 font-medium mb-1">
+          {isDragging ? 'Suelte el archivo aquí' : 'Arrastre su archivo ZIP aquí'}
+        </p>
+        <p className="text-sm text-gray-500">
+          o haga clic para seleccionar
+        </p>
+      </div>
 
       <button
         onClick={handleButtonClick}

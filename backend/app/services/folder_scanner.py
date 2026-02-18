@@ -93,12 +93,12 @@ class FolderScanner:
 
             filename_upper = file_path.name.upper()
 
-            # Detect Factura XML (contains PMD + .xml)
-            if file_path.suffix.lower() == ".xml" and "PMD" in filename_upper:
+            # Detect Factura XML (contains PMD, HMD, or MDS + .xml)
+            if file_path.suffix.lower() == ".xml" and ("PMD" in filename_upper or "HMD" in filename_upper or "MDS" in filename_upper):
                 archivos["factura"] = str(file_path)
 
-            # Detect Nota Crédito XML (contains NC + .xml)
-            elif file_path.suffix.lower() == ".xml" and "NC" in filename_upper:
+            # Detect Nota Crédito XML (contains NC, NCD, or NCS + .xml)
+            elif file_path.suffix.lower() == ".xml" and ("NC" in filename_upper):
                 archivos["nota_credito"] = str(file_path)
 
             # Detect RIPS JSON

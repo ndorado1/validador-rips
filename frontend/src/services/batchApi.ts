@@ -1,6 +1,9 @@
 import axios from 'axios'
 
-const BATCH_API_URL = '/api/batch'
+// Detectar si estamos usando el proxy de Vite (puerto 5173) o no
+const API_BASE = ''
+
+const BATCH_API_URL = `${API_BASE}/api/batch`
 
 export interface FolderInfo {
   nombre: string
@@ -41,6 +44,7 @@ export interface BatchStatusResponse {
   total: number
   exitosos: number
   errores: number
+  rips_guardados: number
   detalles: Array<{
     carpeta: string
     numero_nc: string

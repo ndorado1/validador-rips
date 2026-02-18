@@ -137,7 +137,41 @@ class NCValidationResponse(BaseModel):
     success: bool
     result_state: Optional[bool] = None  # ResultState del ministerio
     codigo_unico_validacion: Optional[str] = None  # CUV - 96 caracteres hexadecimales
-    numeroRadicado: Optional[str] = None
     errores: List[ValidationError] = []
     notificaciones: List[ValidationError] = []
     raw_response: Optional[Dict[str, Any]] = None  # Respuesta completa para descarga
+
+
+# Schemas para Capita Periodo
+class CapitaPeriodoPayload(BaseModel):
+    rips: Dict[str, Any]
+    xmlFevFile: str  # Base64
+
+
+class CapitaPeriodoResponse(BaseModel):
+    success: bool
+    result_state: Optional[bool] = None
+    codigo_unico_validacion: Optional[str] = None
+    errores: List[ValidationError] = []
+    notificaciones: List[ValidationError] = []
+    raw_response: Optional[Dict[str, Any]] = None
+
+
+# Schemas para NC Total
+class NCTotalPayload(BaseModel):
+    xmlFevFile: str  # Base64 del XML
+
+
+# Schemas para FEV RIPS (CargarFevRips)
+class FevRipsPayload(BaseModel):
+    rips: Dict[str, Any]
+    xmlFevFile: str  # Base64
+
+
+class FevRipsResponse(BaseModel):
+    success: bool
+    result_state: Optional[bool] = None
+    codigo_unico_validacion: Optional[str] = None
+    errores: List[ValidationError] = []
+    notificaciones: List[ValidationError] = []
+    raw_response: Optional[Dict[str, Any]] = None

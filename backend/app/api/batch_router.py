@@ -89,6 +89,7 @@ class BatchStatusResponse(BaseModel):
     total: int
     exitosos: int
     errores: int
+    rips_guardados: int = 0
     detalles: List[BatchDetalle]
 
 
@@ -118,7 +119,8 @@ def _on_progress_update(batch_id: str, state: BatchState) -> None:
             "progreso": state.completadas,
             "total": state.total,
             "exitosos": state.exitosos,
-            "errores": state.errores
+            "errores": state.errores,
+            "rips_guardados": state.rips_guardados
         }
         asyncio.create_task(_broadcast_to_batch(batch_id, message))
 
@@ -370,6 +372,9 @@ async def get_batch_status(batch_id: str) -> BatchStatusResponse:
         for r in state.resultados
     ]
 
+    # Count RIPS files saved
+    rips_guardados = sum(1 for r in state.resultados if r.rips_guardado)
+
     return BatchStatusResponse(
         batch_id=batch_id,
         estado=estado,
@@ -378,6 +383,7 @@ async def get_batch_status(batch_id: str) -> BatchStatusResponse:
         total=state.total,
         exitosos=state.exitosos,
         errores=state.errores,
+        rips_guardados=rips_guardados,
         detalles=detalles
     )
 

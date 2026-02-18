@@ -45,6 +45,10 @@ backend/.vscode/
 frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/
+frontend/.vite/
+
+# Temp
+backend/temp/
 frontend/*.local
 frontend/.env
 frontend/.env.local
@@ -62,6 +66,9 @@ frontend/*.ntvs*
 frontend/*.njsproj
 frontend/*.sln
 frontend/*.sw?
+
+# Vite cache
+.vite/
 
 # General
 .DS_Store

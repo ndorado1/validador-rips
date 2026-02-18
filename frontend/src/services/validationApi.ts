@@ -1,7 +1,11 @@
 import axios from 'axios'
 
-const VALIDATION_API_URL = '/api/validation'
-const CORRECTION_API_URL = '/api/correccion'
+// Detectar si estamos usando el proxy de Vite (puerto 5173) o no
+// URL relativa: en dev Vite hace proxy de /api; en prod (Docker) mismo origen
+const API_BASE = ''
+
+const VALIDATION_API_URL = `${API_BASE}/api/validation`
+const CORRECTION_API_URL = `${API_BASE}/api/correccion`
 
 export interface LoginCredentials {
   tipoDocumento: string
@@ -77,7 +81,6 @@ export interface NCValidationResponse {
   success: boolean
   result_state?: boolean  // ResultState del ministerio
   codigo_unico_validacion?: string  // CUV - 96 caracteres hexadecimales
-  numeroRadicado?: string
   errores: ValidationError[]
   notificaciones: ValidationError[]
   raw_response?: Record<string, unknown>  // Respuesta completa para descarga

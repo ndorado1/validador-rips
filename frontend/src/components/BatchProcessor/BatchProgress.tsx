@@ -153,11 +153,18 @@ export default function BatchProgress({ folders, batchId: initialBatchId }: Batc
     websocket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
-        if (data.type === 'status_update') {
-          setStatus(data.status)
-          if (data.status.estado === 'completado' || data.status.estado === 'error') {
-            setIsRunning(false)
-          }
+        if (data.tipo === 'progreso') {
+          setStatus(prev => prev ? {
+            ...prev,
+            completadas: data.progreso,
+            total: data.total,
+            exitosos: data.exitosos,
+            errores: data.errores,
+            rips_guardados: data.rips_guardados ?? prev.rips_guardados,
+            progreso: data.total > 0 ? Math.round((data.progreso / data.total) * 100) : 0
+          } : prev)
+        } else if (data.tipo === 'completado') {
+          setIsRunning(false)
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error)
@@ -285,6 +292,9 @@ export default function BatchProgress({ folders, batchId: initialBatchId }: Batc
               className="bg-blue-600 h-3 rounded-full transition-all duration-300"
               style={{ width: `${Math.min(progressPercentage, 100)}%` }}
             />
+          </div>
+          <div className="text-sm text-gray-500">
+            {status.rips_guardados} / {status.total} RIPS creados
           </div>
         </div>
       )}

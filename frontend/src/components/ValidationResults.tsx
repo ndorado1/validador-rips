@@ -71,11 +71,6 @@ export default function ValidationResults({ result, onRetry, onClose, numeroNota
             <p className={`font-medium ${result.success ? 'text-green-800' : 'text-red-800'}`}>
               {result.success ? 'Validación Exitosa' : 'Validación con Errores'}
             </p>
-            {result.numeroRadicado && (
-              <p className="text-sm text-green-700 mt-1">
-                Número de Radicado: <strong>{result.numeroRadicado}</strong>
-              </p>
-            )}
           </div>
         </div>
       </div>
@@ -122,8 +117,8 @@ export default function ValidationResults({ result, onRetry, onClose, numeroNota
         </div>
       )}
 
-      {/* Notificaciones */}
-      {hasNotifications && (
+      {/* Notificaciones (solo mostrar cuando hay errores, no en validación exitosa) */}
+      {hasNotifications && !result.success && (
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="text-orange-500" size={20} />
