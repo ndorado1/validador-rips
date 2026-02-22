@@ -24,15 +24,15 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     debug: bool = True
-    # str para evitar json.loads. Env: CORS_ORIGINS_RAW (Easypanel inyecta CORS_ORIGINS vacío y rompe)
-    cors_origins_raw: str = "*,http://localhost:5173,http://localhost:3000,http://localhost:3002,https://localhost"
+    # str para evitar json.loads. Env: CORS_ORIGINS_RAW (no CORS_ORIGINS)
+    cors_origins_raw: str = "*,https://validador.mamadominga.org,http://localhost:5173,http://localhost:3000,http://localhost:3002"
 
     @property
     def cors_origins(self) -> List[str]:
         return _parse_cors_origins(self.cors_origins_raw)
 
     # Configuración API Ministerio de Salud (base para todos los endpoints del ministerio)
-    ministerio_api_url: str = "https://rips-validador-fevrips-api.zbs9ut.easypanel.host/api"
+    ministerio_api_url: str = "https://rips.stage.mamadominga.org/api"
     ministerio_api_timeout: int = 60  # Timeout para login y llamadas al ministerio
 
     # Kimi API (reutiliza LLM_API_KEY si está disponible)
