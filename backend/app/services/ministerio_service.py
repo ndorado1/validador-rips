@@ -99,24 +99,33 @@ class MinisterioService:
                     url,
                     json=json_payload,
                     headers=headers,
-                    timeout=60,  # Timeout más largo para este endpoint
+                    timeout=60,
                     verify=False
                 )
-                response.raise_for_status()
-
                 data = response.json()
+
+                if response.status_code == 400 and data.get("ResultadosValidacion") is not None:
+                    return self._parse_validation_response(data)
+
+                response.raise_for_status()
                 return self._parse_validation_response(data)
 
             except requests.exceptions.Timeout as e:
                 last_error = e
                 if attempt < max_retries:
-                    continue  # Reintentar
-                raise  # Agotados los reintentos
+                    continue
+                raise
 
-            except requests.exceptions.HTTPError:
-                raise  # No reintentar errores HTTP
+            except requests.exceptions.HTTPError as e:
+                if e.response is not None and e.response.content:
+                    try:
+                        err_body = e.response.json()
+                        if err_body.get("ResultadosValidacion") is not None:
+                            return self._parse_validation_response(err_body)
+                    except (ValueError, TypeError):
+                        pass
+                raise
 
-        # Si llegamos aquí, agotamos los reintentos por timeout
         if last_error:
             raise last_error
 

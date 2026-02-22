@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Users, CreditCard, Package, ArrowRight, LogOut, Shield } from 'lucide-react'
+import { FileText, Users, CreditCard, Package, ArrowRight, LogOut, Shield, FileMinus } from 'lucide-react'
 import SisproLoginModal from '../components/SisproLoginModal'
 import { useValidation } from '../context/ValidationContext'
 
@@ -45,6 +45,15 @@ function HubContent() {
       path: '/fev-rips',
       color: 'bg-amber-500',
       hoverColor: 'hover:bg-amber-600'
+    },
+    {
+      id: 'nc-parcial',
+      title: 'Nota Crédito Parcial',
+      description: 'Valida Nota Crédito Parcial ante el Ministerio de Salud (RIPS + XML)',
+      icon: FileMinus,
+      path: '/nc-parcial',
+      color: 'bg-sky-500',
+      hoverColor: 'hover:bg-sky-600'
     }
   ]
 

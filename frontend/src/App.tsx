@@ -5,6 +5,7 @@ import NotasCreditoPage from './pages/NotasCreditoPage'
 import CapitaPeriodoPage from './pages/CapitaPeriodoPage'
 import NCTotalPage from './pages/NCTotalPage'
 import FevRipsPage from './pages/FevRipsPage'
+import NCParcialPage from './pages/NCParcialPage'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route path="/capita-periodo" element={<CapitaPeriodoPage />} />
           <Route path="/nc-total" element={<NCTotalPage />} />
           <Route path="/fev-rips" element={<FevRipsPage />} />
+          <Route path="/nc-parcial" element={<NCParcialPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
