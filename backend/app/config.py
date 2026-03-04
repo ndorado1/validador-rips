@@ -32,7 +32,7 @@ class Settings(BaseSettings):
         return _parse_cors_origins(self.cors_origins_raw)
 
     # Configuración API Ministerio de Salud (base para todos los endpoints del ministerio)
-    ministerio_api_url: str = "https://rips.stage.mamadominga.org/api"
+    ministerio_api_url: str = "https://rips.mamadominga.org/api"
     ministerio_api_timeout: int = 60  # Timeout para login y llamadas al ministerio
 
     # Kimi API (reutiliza LLM_API_KEY si está disponible)
