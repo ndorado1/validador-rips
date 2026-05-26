@@ -175,3 +175,18 @@ class FevRipsResponse(BaseModel):
     errores: List[ValidationError] = []
     notificaciones: List[ValidationError] = []
     raw_response: Optional[Dict[str, Any]] = None
+
+
+# Schemas para Capita Inicial
+class CapitaInicialPayload(BaseModel):
+    xmlFevFile: str  # Base64
+
+
+class CapitaInicialResponse(BaseModel):
+    success: bool
+    result_state: Optional[bool] = None
+    codigo_unico_validacion: Optional[str] = None
+    errores: List[ValidationError] = []
+    notificaciones: List[ValidationError] = []
+    raw_response: Optional[Dict[str, Any]] = None
+

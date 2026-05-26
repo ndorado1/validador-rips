@@ -21,6 +21,8 @@ from .schemas import (
     NCTotalPayload,
     FevRipsPayload,
     FevRipsResponse,
+    CapitaInicialPayload,
+    CapitaInicialResponse,
 )
 from .correccion_schemas import (
     PropuestaCorreccion,

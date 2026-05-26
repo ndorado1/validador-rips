@@ -4,7 +4,7 @@ from typing import Dict, Any
 import urllib3
 import logging
 
-from app.models import LoginCredentials, NCPayload, NCValidationResponse, ValidationError, CapitaPeriodoPayload, CapitaPeriodoResponse, NCTotalPayload, FevRipsPayload, FevRipsResponse
+from app.models import LoginCredentials, NCPayload, NCValidationResponse, ValidationError, CapitaPeriodoPayload, CapitaPeriodoResponse, NCTotalPayload, FevRipsPayload, FevRipsResponse, CapitaInicialPayload, CapitaInicialResponse
 from app.config import settings
 
 # Configurar logging
@@ -324,6 +324,87 @@ class MinisterioService:
             raise last_error
 
         raise RuntimeError("Error inesperado al enviar FEV RIPS")
+
+    async def cargar_capita_inicial(self, payload: CapitaInicialPayload, token: str) -> CapitaInicialResponse:
+        """
+        Envía Capita Inicial al ministerio para validación (CargarCapitaInicial).
+
+        Args:
+            payload: Payload con xmlFevFile en base64
+            token: Token JWT de autorización
+
+        Returns:
+            CapitaInicialResponse con resultado de la validación
+        """
+        url = f"{self.base_url}/PaquetesFevRips/CargarCapitaInicial"
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+
+        # Para Capita Inicial: "rips" debe ser null y "xmlFevFile" es el XML en base64
+        json_payload = {
+            "rips": None,
+            "xmlFevFile": payload.xmlFevFile
+        }
+
+        max_retries = 2
+        last_error = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                response = requests.post(
+                    url,
+                    json=json_payload,
+                    headers=headers,
+                    timeout=60,
+                    verify=False
+                )
+
+                data = response.json()
+
+                # El ministerio puede devolver 400 con ResultadosValidacion (formato de validación)
+                # En ese caso parseamos y retornamos en lugar de hacer raise
+                if response.status_code == 400 and data.get("ResultadosValidacion") is not None:
+                    return self._parse_capita_inicial_response(data)
+
+                response.raise_for_status()
+                return self._parse_capita_inicial_response(data)
+
+            except requests.exceptions.Timeout as e:
+                last_error = e
+                if attempt < max_retries:
+                    continue
+                raise
+
+            except requests.exceptions.HTTPError as e:
+                if e.response is not None and e.response.content:
+                    try:
+                        err_body = e.response.json()
+                        if err_body.get("ResultadosValidacion") is not None:
+                            return self._parse_capita_inicial_response(err_body)
+                        logger.error(f"Capita Inicial ministerio {e.response.status_code}: {err_body}")
+                    except (ValueError, TypeError):
+                        pass
+                raise
+
+        if last_error:
+            raise last_error
+
+        raise RuntimeError("Error inesperado al enviar Capita Inicial")
+
+    def _parse_capita_inicial_response(self, data: Dict[str, Any]) -> CapitaInicialResponse:
+        """Parsea la respuesta del ministerio para Capita Inicial (mismo formato que Capita)."""
+        cap = self._parse_capita_response(data)
+        return CapitaInicialResponse(
+            success=cap.success,
+            result_state=cap.result_state,
+            codigo_unico_validacion=cap.codigo_unico_validacion,
+            errores=cap.errores,
+            notificaciones=cap.notificaciones,
+            raw_response=cap.raw_response
+        )
 
     def _parse_fev_rips_response(self, data: Dict[str, Any]) -> FevRipsResponse:
         """Parsea la respuesta del ministerio para FEV RIPS (mismo formato que Capita)."""

@@ -29,6 +29,15 @@ function HubContent() {
       hoverColor: 'hover:bg-emerald-600'
     },
     {
+      id: 'capita-inicial',
+      title: 'Capita Inicial',
+      description: 'Valida y envía paquetes de Capita Inicial al Ministerio de Salud (solo requiere XML)',
+      icon: Shield,
+      path: '/capita-inicial',
+      color: 'bg-teal-500',
+      hoverColor: 'hover:bg-teal-600'
+    },
+    {
       id: 'nc-total',
       title: 'Nota Crédito Total',
       description: 'Valida Nota Crédito Total ante el Ministerio de Salud (solo requiere XML)',
