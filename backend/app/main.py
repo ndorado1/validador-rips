@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.config import settings
-from app.api import nc_router, validation_router, correccion_router, batch_router, capita_router, nc_total_router, fev_rips_router, capita_inicial_router
+from app.api import nc_router, validation_router, correccion_router, batch_router, capita_router, nc_total_router, fev_rips_router, capita_inicial_router, capita_final_router
 
 # Configurar logging
 logging.basicConfig(
@@ -49,6 +49,8 @@ app.include_router(fev_rips_router.router, prefix="/api/fev-rips", tags=["FEV RI
 logger.info("✓ FEV RIPS router registrado")
 app.include_router(capita_inicial_router.router, prefix="/api/capita-inicial", tags=["Capita Inicial"])
 logger.info("✓ Capita Inicial router registrado")
+app.include_router(capita_final_router.router, prefix="/api/capita-final", tags=["Capita Final"])
+logger.info("✓ Capita Final router registrado")
 logger.info("Todos los routers registrados exitosamente")
 
 

@@ -190,3 +190,18 @@ class CapitaInicialResponse(BaseModel):
     notificaciones: List[ValidationError] = []
     raw_response: Optional[Dict[str, Any]] = None
 
+
+# Schemas para Capita Final
+class CapitaFinalPayload(BaseModel):
+    rips: Dict[str, Any]
+
+
+class CapitaFinalResponse(BaseModel):
+    success: bool
+    result_state: Optional[bool] = None
+    codigo_unico_validacion: Optional[str] = None
+    errores: List[ValidationError] = []
+    notificaciones: List[ValidationError] = []
+    raw_response: Optional[Dict[str, Any]] = None
+
+

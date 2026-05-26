@@ -23,6 +23,8 @@ from .schemas import (
     FevRipsResponse,
     CapitaInicialPayload,
     CapitaInicialResponse,
+    CapitaFinalPayload,
+    CapitaFinalResponse,
 )
 from .correccion_schemas import (
     PropuestaCorreccion,

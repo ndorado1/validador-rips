@@ -38,6 +38,15 @@ function HubContent() {
       hoverColor: 'hover:bg-teal-600'
     },
     {
+      id: 'capita-final',
+      title: 'Capita Final',
+      description: 'Valida y envía paquetes de Capita Final al Ministerio de Salud (solo requiere RIPS JSON)',
+      icon: Package,
+      path: '/capita-final',
+      color: 'bg-cyan-500',
+      hoverColor: 'hover:bg-cyan-600'
+    },
+    {
       id: 'nc-total',
       title: 'Nota Crédito Total',
       description: 'Valida Nota Crédito Total ante el Ministerio de Salud (solo requiere XML)',
