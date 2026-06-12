@@ -3,6 +3,7 @@ import { Check, X, AlertCircle, Loader2, Sparkles, Edit2, Plus, FileText, Code, 
 import type { PropuestaCorreccion, CambioAprobado } from '../services/validationApi'
 import JsonExplorer from './JsonExplorer'
 import XmlExplorer from './XmlExplorer'
+import PayloadViewer from './PayloadViewer'
 
 export interface ManualCorrection {
   campo: string
@@ -261,16 +262,12 @@ export default function CorreccionPanel({
               </div>
 
               {/* Contenido */}
-              <div className="max-h-96 overflow-auto">
+              <div>
                 {archivoActivo === 'xml' && xmlContent && (
-                  <pre className="p-4 text-xs font-mono bg-gray-50 whitespace-pre-wrap">
-                    {xmlContent}
-                  </pre>
+                  <PayloadViewer text={xmlContent} title="XML Nota Crédito" language="xml" />
                 )}
                 {archivoActivo === 'json' && ripsJson && (
-                  <pre className="p-4 text-xs font-mono bg-gray-50 whitespace-pre-wrap">
-                    {JSON.stringify(ripsJson, null, 2)}
-                  </pre>
+                  <PayloadViewer data={ripsJson} title="JSON RIPS" language="json" />
                 )}
               </div>
             </div>

@@ -8,6 +8,7 @@ import { enviarFevRips, fileToBase64 } from '../services/fevRipsApi'
 import type { FevRipsResponse } from '../services/fevRipsApi'
 import SisproLoginModal from '../components/SisproLoginModal'
 import CorreccionPanel from '../components/CorreccionPanel'
+import PayloadViewer from '../components/PayloadViewer'
 
 interface FevRipsFileUploadProps {
   xmlFile: File | null
@@ -117,7 +118,6 @@ interface PayloadPreviewProps {
 }
 
 function PayloadPreview({ ripsData, xmlBase64, onSubmit, onCancel, isSubmitting }: PayloadPreviewProps) {
-  const [showRips, setShowRips] = useState(true)
   const [showXml, setShowXml] = useState(true)
 
   return (
@@ -128,20 +128,7 @@ function PayloadPreview({ ripsData, xmlBase64, onSubmit, onCancel, isSubmitting 
       </h2>
 
       <div className="space-y-4">
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <button
-            onClick={() => setShowRips(!showRips)}
-            className="w-full px-4 py-3 bg-gray-50 flex items-center justify-between hover:bg-gray-100 transition-colors"
-          >
-            <span className="font-medium text-gray-700">RIPS JSON</span>
-            {showRips ? <EyeOff size={18} /> : <Eye size={18} />}
-          </button>
-          {showRips && ripsData && (
-            <div className="p-4 bg-gray-900 overflow-auto max-h-96">
-              <pre className="text-sm text-green-400">{JSON.stringify(ripsData, null, 2)}</pre>
-            </div>
-          )}
-        </div>
+        <PayloadViewer data={ripsData} title="RIPS JSON" />
 
         <div className="border border-gray-200 rounded-lg overflow-hidden">
           <button

@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Send, FileJson, FileCode, AlertTriangle, Check, ChevronDown, ChevronUp } from 'lucide-react'
 import { xmlToBase64 } from '../services/validationApi'
+import PayloadViewer from './PayloadViewer'
 
 interface ValidationReviewProps {
   ripsData: Record<string, unknown>
@@ -19,11 +20,15 @@ export default function ValidationReview({
 }: ValidationReviewProps) {
   const [confirmed, setConfirmed] = useState(false)
   const [showXml, setShowXml] = useState(false)
-  const [showRips, setShowRips] = useState(true)
 
-  // Calcular tamaño aproximado del payload
+  // Calcular tamaño aproximado del payload (memoizado: no recalcular en cada render)
   const xmlBase64Length = Math.ceil(xmlContent.length * 4 / 3)
-  const payloadSizeKB = (JSON.stringify(ripsData).length + xmlBase64Length) / 1024
+  const payloadSizeKB = useMemo(
+    () => (JSON.stringify(ripsData).length + xmlBase64Length) / 1024,
+    [ripsData, xmlBase64Length]
+  )
+  // Codificar el XML una sola vez (antes se recodificaba dos veces por render)
+  const xmlBase64Full = useMemo(() => xmlToBase64(xmlContent), [xmlContent])
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -55,24 +60,8 @@ export default function ValidationReview({
       </div>
 
       {/* Sección RIPS JSON */}
-      <div className="mb-4 border rounded-lg overflow-hidden">
-        <button
-          onClick={() => setShowRips(!showRips)}
-          className="w-full px-4 py-3 bg-gray-100 flex items-center justify-between hover:bg-gray-200 transition-colors"
-        >
-          <div className="flex items-center gap-2">
-            <FileJson size={18} className="text-blue-600" />
-            <span className="font-medium">Datos RIPS (JSON)</span>
-          </div>
-          {showRips ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-        </button>
-        {showRips && (
-          <div className="p-4 bg-gray-900 overflow-auto max-h-96">
-            <pre className="text-sm text-green-400 font-mono">
-              {JSON.stringify(ripsData, null, 2)}
-            </pre>
-          </div>
-        )}
+      <div className="mb-4">
+        <PayloadViewer data={ripsData} title="Datos RIPS (JSON)" />
       </div>
 
       {/* Sección XML Base64 */}
@@ -90,10 +79,10 @@ export default function ValidationReview({
         {showXml && (
           <div className="p-4 bg-gray-900 overflow-auto max-h-48">
             <pre className="text-sm text-purple-400 font-mono break-all">
-              {xmlToBase64(xmlContent).substring(0, 200)}...
+              {xmlBase64Full.substring(0, 200)}...
             </pre>
             <p className="text-xs text-gray-500 mt-2">
-              Mostrando primeros 200 caracteres de {xmlToBase64(xmlContent).length} total
+              Mostrando primeros 200 caracteres de {xmlBase64Full.length} total
             </p>
           </div>
         )}
